@@ -6,13 +6,27 @@ import pytest
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 MEDIAFARM_PLIK = DATA_DIR / "mediafarm.json"
+PODMIOTY_PLIK = DATA_DIR / "podmioty.json"
 
-# mediafarm.json zawiera prawdziwe dane firmy (numery kont bankowych,
-# telefony pracowników) - jest w .gitignore, więc świeży checkout (CI) go
-# nie ma. Testy integracyjne (generator_xlsx, ui_kreator) wołają
-# lp.spolka_mediafarm()/kontakt_accounta() i wybuchałyby bez niego -
-# fikcyjne dane, tylko żeby kod miał co przeczytać. Jeśli developer ma już
-# prawdziwy plik lokalnie (zwykły przypadek), fixture go nie rusza.
+# mediafarm.json/podmioty.json zawierają prawdziwe dane firmy i klientów
+# (numery kont bankowych, NIP/KRS, telefony pracowników) - są w .gitignore,
+# więc świeży checkout (CI) ich nie ma. Testy integracyjne (generator_xlsx,
+# ui_kreator) wołają lp.spolka_mediafarm()/kontakt_accounta()/znajdz_podmiot()
+# i część wybuchałaby bez nich - fikcyjne dane, tylko żeby kod miał co
+# przeczytać (dokładnie account_manager/dom_mediowy/podmiot_realizujacy z
+# PELNY_STAN w test_generator_xlsx.py i test_ui_kreator.py). Jeśli developer
+# ma już prawdziwe pliki lokalnie (zwykły przypadek), fixture ich nie rusza.
+FIKCYJNE_PODMIOTY = {
+    "Igor Samul": {
+        "Initiative Media Warszawa sp. z o.o.": {
+            "adres_fakturowy": "ul. Testowa 2, 00-000 Warszawa",
+            "numery_rejestrowe": "KRS: 0000000002 NIP: 000-000-00-02; REGON: 000000002;",
+            "termin_platnosci": "30 dni",
+            "domyslny_podmiot": "Sp. k.",
+        }
+    }
+}
+
 FIKCYJNE_DANE = {
     "spolki": {
         "Sp. k.": {
@@ -48,3 +62,18 @@ def zapewnij_mediafarm_json():
         yield
     finally:
         MEDIAFARM_PLIK.unlink(missing_ok=True)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def zapewnij_podmioty_json():
+    if PODMIOTY_PLIK.exists():
+        yield
+        return
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    PODMIOTY_PLIK.write_text(
+        json.dumps(FIKCYJNE_PODMIOTY, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    try:
+        yield
+    finally:
+        PODMIOTY_PLIK.unlink(missing_ok=True)
