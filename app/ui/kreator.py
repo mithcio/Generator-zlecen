@@ -4,6 +4,7 @@ from pathlib import Path
 
 import flet as ft
 
+from app.services import aktualizacje
 from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
 from app.services import ustawienia
@@ -37,10 +38,15 @@ class Kreator:
             title=ft.Text("Generator Zleceń"),
             actions=[
                 ft.IconButton(
+                    icon=ft.Icons.SYSTEM_UPDATE_ALT,
+                    tooltip="Sprawdź aktualizacje",
+                    on_click=lambda e: self.sprawdz_aktualizacje(),
+                ),
+                ft.IconButton(
                     icon=ft.Icons.SETTINGS,
                     tooltip="Ustawienia",
                     on_click=lambda e: self.pokaz_ustawienia(),
-                )
+                ),
             ],
         )
 
@@ -101,6 +107,34 @@ class Kreator:
             actions=[ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())],
         )
         self.page.show_dialog(dlg)
+
+    def sprawdz_aktualizacje(self) -> None:
+        wynik = aktualizacje.sprawdz()
+
+        if wynik.blad:
+            tresc = ft.Text(wynik.blad)
+            akcje = [ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())]
+        elif wynik.dostepna_nowsza:
+            tresc = ft.Text(
+                f"Dostępna nowa wersja {wynik.wersja_najnowsza} "
+                f"(masz {aktualizacje.WERSJA_APP}). Otworzyć stronę pobierania?"
+            )
+
+            def otworz(e: ft.Event) -> None:
+                aktualizacje.otworz_strone_pobierania(wynik.url_do_otwarcia)
+                self.page.pop_dialog()
+
+            akcje = [
+                ft.TextButton("Anuluj", on_click=lambda e: self.page.pop_dialog()),
+                ft.FilledButton("Pobierz", on_click=otworz),
+            ]
+        else:
+            tresc = ft.Text(f"Masz najnowszą wersję ({aktualizacje.WERSJA_APP}).")
+            akcje = [ft.TextButton("OK", on_click=lambda e: self.page.pop_dialog())]
+
+        self.page.show_dialog(
+            ft.AlertDialog(title=ft.Text("Aktualizacje"), content=tresc, actions=akcje)
+        )
 
     def pokaz_ustawienia(self) -> None:
         biezace = ustawienia.wczytaj()
