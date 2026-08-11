@@ -138,6 +138,7 @@ def buduj(kreator) -> ft.Control:
             kreator.pokaz_blad([f"Nie udało się zapisać plików: {err}"])
             return
         stan.zlecenie_wygenerowane = (str(folder), str(sciezka_xlsx), str(sciezka_pdf))
+        stan.numer_automatyczny_aktywny = False
         kreator.odswiez()
 
     tresc.append(

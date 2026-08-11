@@ -37,6 +37,13 @@ class StanKreatora:
     # obowiązywać (patrz krok2_dane_kampanii._pokaz_ostrzezenie_numeru).
     nr_zlecenia_automatyczny: str | None = None
 
+    # Czy nr_zlecenia_automatyczny wciąż jest aktywną, nieuwolnioną rezerwacją
+    # w pliku Numery_zlecen_2026.xlsx - True zaraz po pobraniu w kroku 2,
+    # False po świadomym zwolnieniu (zachowaniu numeru wpisanego ręcznie) albo
+    # po wygenerowaniu zlecenia (numer faktycznie wykorzystany, nie "wiszący").
+    # Używane do ostrzeżenia przy zamykaniu okna (patrz kreator.obsluz_zamkniecie_okna).
+    numer_automatyczny_aktywny: bool = False
+
     okresy: list[Okres] = field(default_factory=list)
 
     # Robocze pole formularza "dodaj okres" w kroku 3 — musi żyć w stanie

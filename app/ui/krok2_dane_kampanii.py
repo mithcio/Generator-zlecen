@@ -56,6 +56,7 @@ def buduj(kreator) -> ft.Control:
         try:
             stan.nr_zlecenia = numeracja.zarezerwuj_numer(stan.podmiot_realizujacy, stan.account_manager)
             stan.nr_zlecenia_automatyczny = stan.nr_zlecenia
+            stan.numer_automatyczny_aktywny = True
         except numeracja.BladNumeracji as err:
             return ft.Column(
                 [
@@ -349,6 +350,7 @@ def _pokaz_ostrzezenie_numeru(kreator, stan) -> None:
             kreator.page.pop_dialog()
             kreator.pokaz_blad([str(err)])
             return
+        stan.numer_automatyczny_aktywny = False
         kreator.page.pop_dialog()
         stan.krok = 3
         kreator.odswiez()

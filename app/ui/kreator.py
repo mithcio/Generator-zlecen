@@ -7,6 +7,7 @@ import flet as ft
 from app.services import aktualizacje
 from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
+from app.services import numeracja
 from app.services import ustawienia
 from app.ui import (
     krok1_podmiot,
@@ -48,6 +49,57 @@ class Kreator:
                     on_click=lambda e: self.pokaz_ustawienia(),
                 ),
             ],
+        )
+
+        # Przy "x" na oknie: jeśli krok 2 zdążył zarezerwować numer, a
+        # zlecenie nie zostało jeszcze wygenerowane (krok 4), ten numer
+        # zostałby "wiszący" - zajęty w pliku, ale nieużyty przez nikogo -
+        # patrz obsluz_zamkniecie_okna.
+        self.page.window.prevent_close = True
+        self.page.window.on_event = self.obsluz_zamkniecie_okna
+
+    async def obsluz_zamkniecie_okna(self, e: ft.WindowEvent) -> None:
+        if e.type != ft.WindowEventType.CLOSE:
+            return
+
+        if not self.stan.numer_automatyczny_aktywny or not self.stan.nr_zlecenia_automatyczny:
+            await self.page.window.destroy()
+            return
+
+        numer = self.stan.nr_zlecenia_automatyczny
+        podmiot = self.stan.podmiot_realizujacy
+
+        async def zwolnij_i_zamknij(ev: ft.Event) -> None:
+            try:
+                numeracja.zwolnij_numer(numer, podmiot)
+            except Exception:
+                # Plik akurat niedostępny (otwarty w Excelu/sync) albo inny
+                # nieoczekiwany błąd - nie blokujemy zamykania programu z
+                # tego powodu, numer po prostu zostaje zajęty do ręcznego
+                # zwolnienia później. Zamknięcie okna nie może nigdy utknąć
+                # przez błąd w tle.
+                pass
+            await self.page.window.destroy()
+
+        async def zamknij_bez_zwalniania(ev: ft.Event) -> None:
+            await self.page.window.destroy()
+
+        def anuluj(ev: ft.Event) -> None:
+            self.page.pop_dialog()
+
+        self.page.show_dialog(
+            ft.AlertDialog(
+                title=ft.Text("Masz zarezerwowany numer zlecenia"),
+                content=ft.Text(
+                    f"Numer {numer} jest zarezerwowany, ale zlecenie nie zostało jeszcze "
+                    "wygenerowane. Zwolnić go, żeby ktoś inny mógł go użyć?"
+                ),
+                actions=[
+                    ft.TextButton("Anuluj (nie zamykaj)", on_click=anuluj),
+                    ft.TextButton(f"Zostaw zarezerwowany ({numer})", on_click=zamknij_bez_zwalniania),
+                    ft.FilledButton("Zwolnij i zamknij", on_click=zwolnij_i_zamknij),
+                ],
+            )
         )
 
     def odswiez(self) -> None:
