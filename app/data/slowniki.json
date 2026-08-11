@@ -1,0 +1,42 @@
+{
+  "przejsciowa": [
+    "TAK",
+    "NIE"
+  ],
+  "format_reklamowy": [
+    "Rewarded KIDS",
+    "Rewarded ADULTS",
+    "In-game DOOH VIDEO KIDS",
+    "In-game DOOH VIDEO ADULTS",
+    "In-game DOOH DISPLAY KIDS",
+    "In-game DOOH DISPLAY ADULTS",
+    "Mobistitial KIDS",
+    "Mobistitial ADULTS",
+    "In-game audio KIDS",
+    "In-game audio ADULTS",
+    "Interstitial KIDS",
+    "Interstitial ADULTS",
+    "YouTube",
+    "Display CPC",
+    "Mailing",
+    "Roblox DISPLAY",
+    "Roblox VIDEO",
+    "Non-standard",
+    "Video interaktywne"
+  ],
+  "target": [
+    "KIDS",
+    "ADULTS",
+    "SILVER"
+  ],
+  "podmiot": [
+    "Sp. k.",
+    "Sp. z o.o."
+  ],
+  "model_sprzedazy": [
+    "CPM",
+    "CPC",
+    "CPV",
+    "FF"
+  ]
+}

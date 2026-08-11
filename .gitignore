@@ -1,0 +1,49 @@
+# Folder źródłowy — dane klienta, przykładowe zlecenia, pliki xlsm z danymi
+# rozliczeniowymi i osobowymi. Nie commitować.
+/źródła/
+
+# Wygenerowane z folderu źródłowego przez scripts/export_seed_data.py — te same
+# wrażliwe dane (NIP/KRS/adresy/numery kont) tylko w innym formacie. Odtwórz
+# lokalnie ze scripts/export_seed_data.py, nie commituj do repo (zwłaszcza
+# publicznego na GitHubie). slowniki.json nie jest wrażliwe (tylko listy
+# rozwijane) i zostaje w repo jako fixture.
+/app/data/podmioty.json
+/app/data/mediafarm.json
+/app/data/numeracja.json
+/app/data/klienci_agencyjni.json
+/app/data/terminy_platnosci_klientow.json
+/app/data/cennik_wydawcow.json
+
+# Ustawienia użytkownika (ścieżki specyficzne dla maszyny: plik numeracji,
+# folder zapisu zleceń, domyślny account manager) - patrz app/services/ustawienia.py
+/app/data/ustawienia.json
+
+# Pliki wygenerowane przez aplikację (zlecenia klientów)
+/Zlecenia_Mediafarm/
+
+# Robocze zrzuty/debug z realnymi danymi klientów (NIP/KRS/adresy) i danymi
+# osobowymi (maile, numery zleceń per-osoba) - nigdy do repo, zwłaszcza
+# publicznego.
+/kidoz_dump.txt
+/out.txt
+/Cenniki_traffic/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# Flet / build artifacts
+build/
+dist/
+*.spec
+
+# Lokalna konfiguracja Claude Code - nie jest kodem appki
+.claude/
+app/.claude/
+
+# OS
+.DS_Store
+Thumbs.db
