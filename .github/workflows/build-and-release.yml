@@ -1,0 +1,103 @@
+name: Build and release
+
+# Odpala się przy każdym tagu v* (np. v1.0.5) - buduje appkę na prawdziwym
+# Windows i macOS (nie da się skompilować jednego z drugiego), odpala testy
+# jako bramkę przed buildem, i publikuje oba pliki jako GitHub Release z
+# tym tagiem. workflow_dispatch pozwala odpalić ręcznie (bez tagowania) do
+# testu buildu - wtedy bez publikowania Release'a.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    # Windows, nie ubuntu - kod/testy dotąd walidowane tylko na Windows
+    # (jedyna platforma, na której realnie działa istniejący workflow
+    # użytkownika), część zachowań (błędy dostępu do plików, ścieżki) mogłaby
+    # się różnić na Linuksie i dawać fałszywe alarmy.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements.txt
+      - run: pytest app/tests -q
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements.txt
+      - name: flet pack (Windows, onedir)
+        shell: bash
+        run: |
+          flet pack app/main.py \
+            -n GeneratorZlecen \
+            -D \
+            -i app/assets/app_icon.ico \
+            --product-name "Generator Zlecen - Mediafarm" \
+            --company-name "Mediafarm" \
+            --add-data "app/assets/logo_mediafarm.png:app/assets" \
+            --add-data "app/data/szablony_wydawcow:app/data/szablony_wydawcow" \
+            --add-data "app/data/slowniki.json:app/data" \
+            -y
+      - name: Zip
+        shell: pwsh
+        run: Compress-Archive -Path dist/GeneratorZlecen -DestinationPath GeneratorZlecen-windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: GeneratorZlecen-windows.zip
+
+  build-macos:
+    needs: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: flet pack (macOS, .app bundle)
+        run: |
+          flet pack app/main.py \
+            -n "Generator Zlecen" \
+            -i app/assets/app_icon.icns \
+            --bundle-id com.mediafarm.generatorzlecen \
+            --product-name "Generator Zlecen - Mediafarm" \
+            --add-data "app/assets/logo_mediafarm.png:app/assets" \
+            --add-data "app/data/szablony_wydawcow:app/data/szablony_wydawcow" \
+            --add-data "app/data/slowniki.json:app/data" \
+            -y
+      - name: Zip
+        run: cd dist && zip -r "../GeneratorZlecen-macos.zip" "Generator Zlecen.app"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: GeneratorZlecen-macos.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            windows-build/GeneratorZlecen-windows.zip \
+            macos-build/GeneratorZlecen-macos.zip \
+            --title "${{ github.ref_name }}" \
+            --notes "Automatyczny build (Windows + macOS) przez GitHub Actions. Windows: rozpakuj .zip, uruchom GeneratorZlecen.exe. macOS: rozpakuj .zip, przenieś .app do Programów; pierwsze uruchomienie może wymagać kliknięcia prawym przyciskiem -> Otwórz (Gatekeeper, appka niepodpisana)." \
+            --repo "${{ github.repository }}"

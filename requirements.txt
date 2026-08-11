@@ -2,3 +2,6 @@ flet>=0.28.0
 openpyxl>=3.1.5
 reportlab>=4.2.0
 pytest>=8.0.0
+
+# Tylko do budowania instalek (flet pack) - nie potrzebne do samego dev/testów
+pyinstaller>=6.0.0
