@@ -14,7 +14,7 @@ API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 
 # Bump przy każdym wydaniu (razem z --product-version w komendzie `flet pack`
 # i z tagiem gita) - to jedyne miejsce, które appka odpytuje o samą siebie.
-WERSJA_APP = "1.0.3"
+WERSJA_APP = "1.0.4"
 
 
 @dataclass
@@ -62,7 +62,7 @@ def sprawdz() -> WynikSprawdzenia:
 
     url = dane.get("html_url") or f"https://github.com/{REPO}/releases/latest"
     for asset in dane.get("assets") or []:
-        if str(asset.get("name", "")).lower().endswith(".exe"):
+        if str(asset.get("name", "")).lower().endswith((".zip", ".exe")):
             url = asset.get("browser_download_url") or url
             break
 
