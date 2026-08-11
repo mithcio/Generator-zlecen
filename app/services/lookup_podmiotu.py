@@ -3,7 +3,9 @@
 dane spółek Mediafarm / kontaktów accountów.
 """
 import json
+import os
 import re
+import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import Optional
@@ -11,6 +13,19 @@ from typing import Optional
 from app.models.podmiot import DanePodmiotu, SpolkaMediafarm
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+
+# mediafarm.json i podmioty.json zawierają dane, które nigdy nie trafiają do
+# repo ani do zbudowanej appki (numery kont bankowych Mediafarm, telefony
+# accountów, dane rozliczeniowe klientów - patrz .gitignore). W spakowanej
+# wersji jedyne miejsce, gdzie appka może je znaleźć, to ten sam trwały
+# folder co ustawienia.json (%APPDATA%\GeneratorZlecenMediafarm) - trzeba je
+# tam ręcznie skopiować raz po instalacji. W wersji z kodu źródłowego (dev)
+# zostaje jak dotąd: app/data/ - stąd funkcja (nie stała), żeby testy mogły
+# monkeypatchować DATA_DIR i nadal trafiać w to samo miejsce.
+def _katalog_uzytkownika() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(os.environ["APPDATA"]) / "GeneratorZlecenMediafarm"
+    return DATA_DIR
 
 
 def formatuj_telefon(numer: Optional[str]) -> str:
@@ -27,8 +42,15 @@ def formatuj_telefon(numer: Optional[str]) -> str:
 
 
 def _wczytaj(nazwa: str) -> dict:
-    with open(DATA_DIR / nazwa, encoding="utf-8") as f:
-        return json.load(f)
+    """Puste {} gdy pliku jeszcze nie ma (świeża instalacja, mediafarm.json/
+    podmioty.json jeszcze nie skopiowane do %APPDATA%) zamiast wywalać całą
+    appkę - UI ma wtedy po prostu puste listy zamiast danych, nie crash."""
+    for katalog in (_katalog_uzytkownika(), DATA_DIR):
+        sciezka = katalog / nazwa
+        if sciezka.exists():
+            with open(sciezka, encoding="utf-8") as f:
+                return json.load(f)
+    return {}
 
 
 def podmioty_dla_accounta(account_manager: str) -> dict[str, DanePodmiotu]:
@@ -93,7 +115,7 @@ def klienci_dla_agencji(account_manager: str, agencja: str) -> list[str]:
 
 
 def lista_accountow() -> list[str]:
-    return list(_wczytaj("mediafarm.json")["accounts"].keys())
+    return list(_wczytaj("mediafarm.json").get("accounts", {}).keys())
 
 
 def slowniki() -> dict:
@@ -101,11 +123,21 @@ def slowniki() -> dict:
     return _wczytaj("slowniki.json")
 
 
+class BrakDanychMediafarm(Exception):
+    """mediafarm.json nie jest jeszcze skopiowany do %APPDATA%\\
+    GeneratorZlecenMediafarm na tej maszynie (dane nie trafiają do repo ani
+    do instalki - patrz _katalog_uzytkownika()) - do poprawienia przez
+    użytkownika/wdrożenie, nie błąd programu."""
+
+
 def spolka_mediafarm(podmiot_realizujacy: str) -> SpolkaMediafarm:
-    spolki = _wczytaj("mediafarm.json")["spolki"]
+    spolki = _wczytaj("mediafarm.json").get("spolki", {})
     wpis = spolki.get(podmiot_realizujacy)
     if wpis is None:
-        raise ValueError(f"Nieznany podmiot realizujący: {podmiot_realizujacy!r}")
+        raise BrakDanychMediafarm(
+            f"Brak danych Mediafarm dla „{podmiot_realizujacy}” — skopiuj "
+            f"mediafarm.json do {_katalog_uzytkownika()}."
+        )
     return SpolkaMediafarm(
         nazwa=wpis["nazwa"],
         numery_rejestrowe=wpis["numery_rejestrowe"],
@@ -115,8 +147,11 @@ def spolka_mediafarm(podmiot_realizujacy: str) -> SpolkaMediafarm:
 
 
 def kontakt_accounta(account_manager: str) -> dict:
-    accounts = _wczytaj("mediafarm.json")["accounts"]
+    accounts = _wczytaj("mediafarm.json").get("accounts", {})
     kontakt = accounts.get(account_manager)
     if kontakt is None:
-        raise ValueError(f"Nieznany account manager: {account_manager!r}")
+        raise BrakDanychMediafarm(
+            f"Brak danych Mediafarm dla accounta „{account_manager}” — skopiuj "
+            f"mediafarm.json do {_katalog_uzytkownika()}."
+        )
     return kontakt
