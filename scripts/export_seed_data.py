@@ -19,7 +19,7 @@ from openpyxl.formatting.formatting import ConditionalFormattingList
 # tego print() z "ń"/"ó" itp. wywala UnicodeEncodeError w połowie skryptu,
 # po zapisaniu części plików JSON, ale bez pozostałych (potwierdzone: właśnie
 # tak się stało przy exporcie klienci_agencyjni.json).
-if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent

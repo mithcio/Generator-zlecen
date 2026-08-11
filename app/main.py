@@ -3,7 +3,19 @@
 Desktop:  python app/main.py
 Web:      python app/main.py --web [--port 8550]
 """
+import os
 import sys
+
+# W spakowanej appce (flet pack, --noconsole) sys.stdout/sys.stderr to None -
+# nie brakujący plik, tylko dosłownie None, bo nie ma konsoli, do której pisać.
+# Każdy print() albo odwołanie do .encoding (np. w scripts/export_seed_data.py,
+# importowanym niżej) wywaliłoby AttributeError na starcie, zanim cokolwiek się
+# pokaże. W trybie z konsolą (dev, `python app/main.py`) sys.stdout/stderr są
+# normalnym plikiem i ten blok nic nie zmienia.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
 import flet as ft
 
