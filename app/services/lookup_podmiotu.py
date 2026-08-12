@@ -3,7 +3,6 @@
 dane spółek Mediafarm / kontaktów accountów.
 """
 import json
-import os
 import re
 import sys
 from dataclasses import replace
@@ -11,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.models.podmiot import DanePodmiotu, SpolkaMediafarm
+from app.services.lokalizacje import katalog_danych_uzytkownika
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -18,13 +18,13 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 # repo ani do zbudowanej appki (numery kont bankowych Mediafarm, telefony
 # accountów, dane rozliczeniowe klientów - patrz .gitignore). W spakowanej
 # wersji jedyne miejsce, gdzie appka może je znaleźć, to ten sam trwały
-# folder co ustawienia.json (%APPDATA%\GeneratorZlecenMediafarm) - trzeba je
-# tam ręcznie skopiować raz po instalacji. W wersji z kodu źródłowego (dev)
-# zostaje jak dotąd: app/data/ - stąd funkcja (nie stała), żeby testy mogły
+# folder co ustawienia.json (patrz lokalizacje.py) - trzeba je tam ręcznie
+# skopiować raz po instalacji. W wersji z kodu źródłowego (dev) zostaje jak
+# dotąd: app/data/ - stąd funkcja (nie stała), żeby testy mogły
 # monkeypatchować DATA_DIR i nadal trafiać w to samo miejsce.
 def _katalog_uzytkownika() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(os.environ["APPDATA"]) / "GeneratorZlecenMediafarm"
+        return katalog_danych_uzytkownika()
     return DATA_DIR
 
 

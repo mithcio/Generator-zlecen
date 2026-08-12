@@ -8,9 +8,10 @@ bezpośrednio użytkownik przez UI — stąd nie ma go w .gitignore razem z
 resztą wrażliwych danych, ale i tak nie trafia do repo (ścieżki są
 specyficzne dla maszyny)."""
 import json
-import os
 import sys
 from pathlib import Path
+
+from app.services.lokalizacje import katalog_danych_uzytkownika
 
 
 def _katalog_ustawien() -> Path:
@@ -18,10 +19,11 @@ def _katalog_ustawien() -> Path:
     rozpakowywanym na nowo przy każdym starcie — zapis tam zniknąłby przy
     następnym uruchomieniu. Ustawienia (ścieżka do Numery_zlecen_2026.xlsx
     i inne) muszą przetrwać między sesjami, więc w wersji spakowanej trafiają
-    do %APPDATA%; w wersji uruchamianej z kodu źródłowego zostają jak dotąd
-    w app/data/, żeby nie zaskakiwać podczas developmentu."""
+    do trwałego folderu danych użytkownika (patrz lokalizacje.py); w wersji
+    uruchamianej z kodu źródłowego zostają jak dotąd w app/data/, żeby nie
+    zaskakiwać podczas developmentu."""
     if getattr(sys, "frozen", False):
-        return Path(os.environ["APPDATA"]) / "GeneratorZlecenMediafarm"
+        return katalog_danych_uzytkownika()
     return Path(__file__).resolve().parent.parent / "data"
 
 

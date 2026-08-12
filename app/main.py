@@ -3,20 +3,22 @@
 Desktop:  python app/main.py
 Web:      python app/main.py --web [--port 8550]
 """
-import os
 import sys
-from pathlib import Path
 
-# W spakowanej appce (flet pack, --noconsole) sys.stdout/sys.stderr to None -
-# nie brakujący plik, tylko dosłownie None, bo nie ma konsoli, do której pisać.
-# Każdy print() albo odwołanie do .encoding (np. w scripts/export_seed_data.py,
-# importowanym niżej) wywaliłoby AttributeError na starcie, zanim cokolwiek się
-# pokaże. W trybie z konsolą (dev, `python app/main.py`) sys.stdout/stderr są
-# normalnym plikiem i ten blok nic nie zmienia. Przekierowane do pliku (nie
-# os.devnull) - inaczej print()/wyjątki są nie do zdiagnozowania zdalnie, bez
-# konsoli i bez debuggera podpiętego do czyjegoś komputera.
+from app.services.lokalizacje import katalog_danych_uzytkownika
+
+# W spakowanej appce (flet pack, --noconsole/.app bez terminala) sys.stdout/
+# sys.stderr to None - nie brakujący plik, tylko dosłownie None, bo nie ma
+# konsoli, do której pisać. Każdy print() albo odwołanie do .encoding (np. w
+# scripts/export_seed_data.py, importowanym niżej) wywaliłoby AttributeError
+# na starcie, zanim cokolwiek się pokaże. W trybie z konsolą (dev,
+# `python app/main.py`) sys.stdout/stderr są normalnym plikiem i ten blok nic
+# nie zmienia. Przekierowane do pliku (nie /dev/null) - inaczej print()/
+# wyjątki są nie do zdiagnozowania zdalnie, bez konsoli i bez debuggera
+# podpiętego do czyjegoś komputera. Ten sam folder co ustawienia.json/
+# mediafarm.json (patrz lokalizacje.py) - jedno miejsce do sprawdzenia.
 if sys.stdout is None or sys.stderr is None:
-    _log_dir = Path(os.environ.get("APPDATA", os.getcwd())) / "GeneratorZlecenMediafarm"
+    _log_dir = katalog_danych_uzytkownika()
     _log_dir.mkdir(parents=True, exist_ok=True)
     _log = open(_log_dir / "app.log", "a", encoding="utf-8", buffering=1)
     if sys.stdout is None:

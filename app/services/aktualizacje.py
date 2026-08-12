@@ -14,7 +14,7 @@ API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 
 # Bump przy każdym wydaniu (razem z --product-version w komendzie `flet pack`
 # i z tagiem gita) - to jedyne miejsce, które appka odpytuje o samą siebie.
-WERSJA_APP = "1.0.7"
+WERSJA_APP = "1.0.8"
 
 
 @dataclass
