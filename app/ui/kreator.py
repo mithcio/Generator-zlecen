@@ -1,5 +1,6 @@
 """Orkiestrator kreatora: trzyma stan, przełącza kroki, wspólne akcje UI
 (błędy, nawigacja, ustawienia) wołane przez poszczególne kroki."""
+import sys
 from pathlib import Path
 
 import flet as ft
@@ -9,6 +10,7 @@ from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
 from app.services import numeracja
 from app.services import ustawienia
+from app.services.lokalizacje import katalog_danych_uzytkownika
 from app.ui import (
     krok1_podmiot,
     krok2_dane_kampanii,
@@ -305,6 +307,26 @@ class Kreator:
                         ]
                     ),
                     blad_folder,
+                    *(
+                        [
+                            ft.Divider(),
+                            ft.Text("Dane klienta i spółek", weight=ft.FontWeight.BOLD, size=12),
+                            ft.Text(
+                                "mediafarm.json i podmioty.json (nie trafiają do instalki - dane "
+                                "wrażliwe) wgraj ręcznie, raz na maszynę, do:",
+                                size=11,
+                                color=ft.Colors.GREY_700,
+                            ),
+                            ft.Text(
+                                str(katalog_danych_uzytkownika()),
+                                size=11,
+                                selectable=True,
+                                weight=ft.FontWeight.BOLD,
+                            ),
+                        ]
+                        if getattr(sys, "frozen", False)
+                        else []
+                    ),
                 ],
                 tight=True,
                 spacing=8,
