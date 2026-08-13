@@ -13,6 +13,7 @@ runtime fontu już zainstalowanego w systemie użytkownika (Windows/macOS/
 Linux mają go domyślnie) i rejestrujemy go w reportlab pod jego ścieżką.
 """
 from pathlib import Path
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -89,6 +90,16 @@ def _zarejestruj_fonty() -> None:
             _FONT_BOLD = "ZlecenieFont"
 
 
+def _tekst_pdf(tekst: str) -> str:
+    """reportlab Paragraph parsuje treść jako mini-XML - wolny tekst (Uwagi,
+    nazwa klienta...) może zawierać &, < albo > i albo wywali generowanie,
+    albo urwie tekst w miejscu takiego znaku. \n samo w sobie nic nie robi
+    w Paragraph - trzeba <br/>. Escape musi być pierwszy, żeby nie zepsuć
+    właśnie wstawionego <br/>."""
+    znormalizowany = tekst.replace("\r\n", "\n").replace("\r", "\n")
+    return _xml_escape(znormalizowany).replace("\n", "<br/>")
+
+
 def generuj_pdf(
     zlecenie: Zlecenie,
     podmiot: DanePodmiotu,
@@ -133,9 +144,9 @@ def generuj_pdf(
         i = len(dane_tabeli)
         if isinstance(element, NaglowekZIdentyfikatorem):
             dane_tabeli.append(
-                [Paragraph(element.tekst, styl_naglowek), "",
-                 Paragraph(element.etykieta_id, styl_naglowek), "",
-                 Paragraph(element.wartosc_id, styl_identyfikator_wartosc)]
+                [Paragraph(_tekst_pdf(element.tekst), styl_naglowek), "",
+                 Paragraph(_tekst_pdf(element.etykieta_id), styl_naglowek), "",
+                 Paragraph(_tekst_pdf(element.wartosc_id), styl_identyfikator_wartosc)]
             )
             style_cmds += [
                 ("SPAN", (0, i), (1, i)),
@@ -143,7 +154,7 @@ def generuj_pdf(
                 ("BACKGROUND", (0, i), (3, i), KOLOR_NAGLOWEK),
             ]
         elif isinstance(element, Naglowek):
-            dane_tabeli.append([Paragraph(element.tekst, styl_naglowek), "", "", "", ""])
+            dane_tabeli.append([Paragraph(_tekst_pdf(element.tekst), styl_naglowek), "", "", "", ""])
             style_cmds += [
                 ("SPAN", (0, i), (-1, i)),
                 ("BACKGROUND", (0, i), (-1, i), KOLOR_NAGLOWEK),
@@ -151,7 +162,8 @@ def generuj_pdf(
         elif isinstance(element, Pozycja):
             etykieta = f"{element.numer} {element.etykieta}".strip()
             dane_tabeli.append(
-                [Paragraph(etykieta, styl_etykieta), "", Paragraph(element.wartosc, styl_wartosc), "", ""]
+                [Paragraph(_tekst_pdf(etykieta), styl_etykieta), "",
+                 Paragraph(_tekst_pdf(element.wartosc), styl_wartosc), "", ""]
             )
             style_cmds += [
                 ("SPAN", (0, i), (1, i)),
@@ -159,7 +171,7 @@ def generuj_pdf(
                 ("BACKGROUND", (0, i), (1, i), KOLOR_ETYKIETA),
             ]
         elif isinstance(element, Tekst):
-            dane_tabeli.append([Paragraph(element.tresc, styl_tekst), "", "", "", ""])
+            dane_tabeli.append([Paragraph(_tekst_pdf(element.tresc), styl_tekst), "", "", "", ""])
             style_cmds.append(("SPAN", (0, i), (-1, i)))
         elif isinstance(element, LiniaPodpisu):
             # Etykiety najpierw, a puste, w pełni oprawione w ramkę miejsce na
@@ -168,7 +180,8 @@ def generuj_pdf(
             # wystarczy wymusić wysokość tego wiersza (rowHeights niżej) -
             # bez tego pusty wiersz zapada się do prawie zera wysokości.
             dane_tabeli.append(
-                [Paragraph(element.lewa, styl_podpis), "", Paragraph(element.prawa, styl_podpis), "", ""]
+                [Paragraph(_tekst_pdf(element.lewa), styl_podpis), "",
+                 Paragraph(_tekst_pdf(element.prawa), styl_podpis), "", ""]
             )
             style_cmds += [
                 ("SPAN", (0, i), (1, i)),

@@ -98,7 +98,10 @@ def _wiersz_pozycja(ws: Worksheet, r: int, element: Pozycja) -> None:
     ws.merge_cells(start_row=r, start_column=3, end_row=r, end_column=5)
     c_numer = ws.cell(row=r, column=1, value=element.numer)
     c_etykieta = ws.cell(row=r, column=2, value=element.etykieta)
-    c_wartosc = ws.cell(row=r, column=3, value=element.wartosc)
+    # \r\n (czasem tak zapisuje wieloliniowe pole tekstowe w UI) do samego \n
+    # - inaczej osierocony \r bywa widoczny jako dziwny znak w Excelu.
+    wartosc = element.wartosc.replace("\r\n", "\n").replace("\r", "\n")
+    c_wartosc = ws.cell(row=r, column=3, value=wartosc)
     for c in (c_numer, c_etykieta):
         c.fill = FILL_ETYKIETA
         c.font = FONT_ETYKIETA
@@ -110,7 +113,10 @@ def _wiersz_pozycja(ws: Worksheet, r: int, element: Pozycja) -> None:
     c_wartosc.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
     for col in range(1, 6):
         _ramka(ws.cell(row=r, column=col), left=CIENKI, top=CIENKI, right=CIENKI, bottom=CIENKI)
-    ws.row_dimensions[r].height = ROW_HEIGHT
+    # Domyślna wysokość mieści jedną linię - wieloliniowe wartości (np. "Uwagi")
+    # bez tego wyglądałyby na wrap_text, ale dodatkowe linie byłyby przycięte.
+    liczba_linii = wartosc.count("\n") + 1
+    ws.row_dimensions[r].height = max(ROW_HEIGHT, liczba_linii * 15.0)
 
 
 def _wiersz_tekst(ws: Worksheet, r: int, element: Tekst) -> None:

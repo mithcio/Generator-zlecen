@@ -10,7 +10,7 @@ from app.services import lookup_podmiotu as lp
 from app.services.generator_xlsx import generuj_xlsx
 
 
-def _przykladowe_zlecenie(model_sprzedazy="CPM", koszt_jednostkowy=26, capping=3):
+def _przykladowe_zlecenie(model_sprzedazy="CPM", koszt_jednostkowy=26, capping=3, uwagi="Dzieci, Młodzież, Dorośli"):
     pola = PolaWspolne(
         account_manager="Igor Samul",
         podmiot_realizujacy="Sp. k.",
@@ -25,7 +25,7 @@ def _przykladowe_zlecenie(model_sprzedazy="CPM", koszt_jednostkowy=26, capping=3
         format_reklamowy="In-game audio KIDS",
         model_sprzedazy=model_sprzedazy,
         koszt_jednostkowy=koszt_jednostkowy,
-        uwagi="Dzieci, Młodzież, Dorośli",
+        uwagi=uwagi,
     )
     okresy = [
         Okres(date(2026, 7, 28), date(2026, 7, 31), 5714.29),
@@ -72,6 +72,24 @@ def test_generuj_xlsx_kluczowe_komorki_tekstowe(tmp_path):
     assert "31.08.2026" in tekst_calego_arkusza
     # Nota o rachunku ma być osobnym polem, nie sklejona z kwotą 7.3.
     assert "Kwota brutto do zapłaty na rachunek wskazany w pkt. 1.2." in tekst_calego_arkusza
+
+
+def test_generuj_xlsx_wieloliniowe_uwagi_maja_wrap_text_i_wysokosc(tmp_path):
+    # Regresja: 4.7 "Uwagi" miało wrap_text, ale stałą wysokość wiersza -
+    # dodatkowe linie wieloliniowej wartości były przycinane (zgłoszone przez
+    # użytkownika, ten sam problem co w generator_dane_traffic.py).
+    tekst = "Linia pierwsza\nLinia druga\nLinia trzecia"
+    zlecenie = _przykladowe_zlecenie(uwagi=tekst)
+    podmiot = lp.znajdz_podmiot(zlecenie.pola.account_manager, zlecenie.pola.dom_mediowy)
+    spolka = lp.spolka_mediafarm(zlecenie.pola.podmiot_realizujacy)
+    kontakt = lp.kontakt_accounta(zlecenie.pola.account_manager)
+
+    sciezka = generuj_xlsx(zlecenie, podmiot, spolka, kontakt, tmp_path / "Zlecenie_test.xlsx")
+    ws = openpyxl.load_workbook(sciezka).active
+    komorka = _wczytaj_komorki_po_numerze(sciezka)["4.7"]
+    assert komorka.value == tekst
+    assert komorka.alignment.wrap_text is True
+    assert ws.row_dimensions[komorka.row].height == 3 * 15.0
 
 
 def test_liczba_i_brutto_sa_prawdziwymi_formulami_cpm(tmp_path):
