@@ -34,7 +34,10 @@ FONT_ETYKIETA = Font(name="Calibri", size=11, bold=True)
 FONT_NAGLOWEK = Font(name="Calibri", size=11, bold=True)
 
 ALIGN_ETYKIETA = Alignment(horizontal="left", vertical="center")
-ALIGN_TEKST = Alignment(horizontal="center", vertical="center")
+# wrap_text=True - bez tego Excel ignoruje znaki nowej linii w komórce (np.
+# wielowierszowe "Uwagi dla traffic:") i wypisuje wszystko jednym ciągiem,
+# bez żadnego odstępu między liniami.
+ALIGN_TEKST = Alignment(horizontal="center", vertical="center", wrap_text=True)
 ALIGN_LICZBA = Alignment(horizontal="right", vertical="center")
 
 FORMAT_LICZBY = "#,##0"
@@ -60,6 +63,11 @@ def _wiersz(ws: Worksheet, r: int, etykieta: str, wartosc) -> None:
         c_wartosc.alignment = ALIGN_LICZBA
     else:
         c_wartosc.alignment = ALIGN_TEKST
+        if isinstance(wartosc, str) and "\n" in wartosc:
+            # Domyślna wysokość wiersza mieści jedną linię - bez tego wrap_text
+            # i tak nic by nie dał, bo dodatkowe linie zostałyby przycięte.
+            liczba_linii = wartosc.count("\n") + 1
+            ws.row_dimensions[r].height = max(15.0, liczba_linii * 15.0)
 
 
 def _naglowek_tabeli(ws: Worksheet, r: int, teksty: list[str]) -> None:

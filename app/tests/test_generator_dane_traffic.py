@@ -132,6 +132,26 @@ def test_generuj_dane_traffic_wydawca_zewnetrzny(tmp_path):
     assert pary["Wydawcy zewnętrzni:"] == "KIDOZ"
 
 
+def test_generuj_dane_traffic_wieloliniowe_uwagi_maja_wrap_text_i_wysokosc(tmp_path):
+    # Regresja: bez wrap_text Excel ignoruje \n w komórce i sklein wszystko
+    # w jeden ciąg bez żadnego odstępu (zgłoszone przez użytkownika).
+    zlecenie = _przykladowe_zlecenie()
+    tekst = "Linia pierwsza\nLinia druga\nLinia trzecia"
+    dane_traffic = DaneTraffic(uwagi_traffic=tekst)
+    sciezka = generuj_dane_traffic(zlecenie, dane_traffic, tmp_path / "DANE_test.xlsx")
+
+    ws = openpyxl.load_workbook(sciezka).active
+    for row in ws.iter_rows():
+        if row[0].value == "Uwagi dla traffic:":
+            komorka = row[1]
+            assert komorka.value == tekst
+            assert komorka.alignment.wrap_text is True
+            assert ws.row_dimensions[komorka.row].height == 3 * 15.0
+            break
+    else:
+        raise AssertionError("nie znaleziono wiersza 'Uwagi dla traffic:'")
+
+
 def test_generuj_dane_traffic_bez_lp_wiersza(tmp_path):
     # "LP:" z oryginalnego szablonu jest zawsze puste w praktyce - świadomie
     # pominięte przy generowaniu (patrz docstring generator_dane_traffic.py).
