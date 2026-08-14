@@ -68,19 +68,20 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - name: flet pack (macOS, .app bundle)
+      # flet pack nie ustawia entitlements macOS wcale (klient Fleta zostaje
+      # bez com.apple.security.files.user-selected.read-write) - FilePicker
+      # (Ustawienia -> wybór pliku/folderu) rzuca wtedy na macOS
+      # PlatformException(ENTITLEMENT_NOT_FOUND, ...). flet build macos
+      # generuje właściwy projekt Flutter/Xcode z entitlements z
+      # pyproject.toml (patrz [tool.flet.macos.entitlement] w repo).
+      - name: flet build (macOS, .app bundle)
         run: |
-          flet pack app/main.py \
-            -n "Generator Zlecen" \
-            -i app/assets/app_icon.icns \
-            --bundle-id com.mediafarm.generatorzlecen \
-            --product-name "Generator Zlecen - Mediafarm" \
-            --add-data "app/assets/logo_mediafarm.png:app/assets" \
-            --add-data "app/data/szablony_wydawcow:app/data/szablony_wydawcow" \
-            --add-data "app/data/slowniki.json:app/data" \
-            -y
+          flet build macos . \
+            --project "Generator Zlecen" \
+            --module-name main \
+            --yes
       - name: Zip
-        run: cd dist && zip -r "../GeneratorZlecen-macos.zip" "Generator Zlecen.app"
+        run: cd build/macos && zip -r "../../GeneratorZlecen-macos.zip" *.app
       - uses: actions/upload-artifact@v4
         with:
           name: macos-build
