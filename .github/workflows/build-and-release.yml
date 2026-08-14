@@ -78,7 +78,8 @@ jobs:
         run: |
           flet build macos . \
             --project "Generator Zlecen" \
-            --module-name main
+            --module-name main \
+            --yes
       - name: Zip
         run: cd build/macos && zip -r "../../GeneratorZlecen-macos.zip" *.app
       - uses: actions/upload-artifact@v4
