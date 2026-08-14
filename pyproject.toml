@@ -1,0 +1,27 @@
+[project]
+name = "generator-zlecen"
+version = "1.0.0"
+
+# Konfiguracja `flet build` (macOS) - `flet pack` (dotychczasowy build macOS w
+# CI) nie przechodzi przez ten mechanizm entitlements wcale, więc spakowany
+# klient Fleta na macOS nie ma com.apple.security.files.user-selected.read-write
+# i FilePicker (Ustawienia -> wybór pliku/folderu) rzuca
+# PlatformException(ENTITLEMENT_NOT_FOUND, ...). `flet build macos` generuje
+# właściwy projekt Flutter/Xcode z tymi entitlementami - patrz
+# .github/workflows/build-and-release.yml (build-macos).
+[tool.flet.app]
+path = "app"
+exclude = ["tests"]
+
+[tool.flet]
+product = "Generator Zlecen - Mediafarm"
+company = "Mediafarm"
+org = "com.mediafarm"
+bundle_id = "com.mediafarm.generatorzlecen"
+
+# Wartości domyślne flet build są już poprawne (app-sandbox=false,
+# files.user-selected.read-write=true) - ustawione tu jawnie, żeby nie zależeć
+# cicho od domyślnych wartości konkretnej wersji flet-cli.
+[tool.flet.macos.entitlement]
+"com.apple.security.app-sandbox" = false
+"com.apple.security.files.user-selected.read-write" = true
