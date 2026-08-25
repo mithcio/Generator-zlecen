@@ -38,6 +38,28 @@ def test_sprawdz_nowsza_wersja_dostepna(monkeypatch):
     assert wynik.url_do_otwarcia == "https://example.com/GeneratorZlecen.exe"
 
 
+def test_sprawdz_wybiera_asset_dla_wlasnej_platformy(monkeypatch):
+    payload = {
+        "tag_name": "v1.1.0",
+        "html_url": "https://example.com",
+        "assets": [
+            {"name": "GeneratorZlecen-macos.zip", "browser_download_url": "https://example.com/macos.zip"},
+            {"name": "GeneratorZlecen-windows.zip", "browser_download_url": "https://example.com/windows.zip"},
+        ],
+    }
+
+    def fake_urlopen(req, timeout=10):
+        return BytesIO(json.dumps(payload).encode("utf-8"))
+
+    monkeypatch.setattr(akt.urllib.request, "urlopen", fake_urlopen)
+
+    monkeypatch.setattr(akt.sys, "platform", "win32")
+    assert akt.sprawdz().url_do_otwarcia == "https://example.com/windows.zip"
+
+    monkeypatch.setattr(akt.sys, "platform", "darwin")
+    assert akt.sprawdz().url_do_otwarcia == "https://example.com/macos.zip"
+
+
 def test_sprawdz_brak_nowszej_wersji(monkeypatch):
     payload = {"tag_name": f"v{akt.WERSJA_APP}", "html_url": "https://example.com", "assets": []}
 

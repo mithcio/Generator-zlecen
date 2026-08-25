@@ -2,6 +2,7 @@ import flet as ft
 
 from app.services import lookup_podmiotu as lp
 from app.services import numeracja
+from app.services import ustawienia
 from app.services.parser_wiersza import (
     BladParsowaniaWiersza,
     parsuj_wiersze,
@@ -142,6 +143,14 @@ def _widok_wklej(kreator) -> ft.Control:
             return
 
         wspolne, okresy, konflikty = rozdziel_pola_wspolne_i_okresy(wiersze)
+        if ustawienia.wczytaj().get("uwagi_wspolne"):
+            # Kolumna Uwagi jest celowo poza POLA_WSPOLNE_KLUCZE (patrz
+            # parser_wiersza.py), więc przy scalaniu (ustawienie "Wspólne pole
+            # Uwagi") doklejamy ją tu osobno - pierwsza niepusta wartość
+            # spośród wklejonych wierszy, bez wchodzenia w dialog konfliktów
+            # (to tylko notatka, nie pole krytyczne dla poprawności zlecenia).
+            uwagi_niepuste = [w["uwagi"] for w in wiersze if w.get("uwagi")]
+            wspolne["uwagi"] = uwagi_niepuste[0] if uwagi_niepuste else ""
         if konflikty:
             _pokaz_dialog_konfliktow(kreator, wiersze, wspolne, okresy, konflikty)
         else:
@@ -289,9 +298,12 @@ def _zastosuj_dane_wklejone(kreator, wspolne: dict, okresy) -> None:
     koszt = wspolne.get("koszt_jednostkowy")
     stan.koszt_jednostkowy = str(koszt) if koszt is not None else ""
     stan.nr_zlecenia = wspolne.get("nr_zlecenia") or stan.nr_zlecenia
-    # Uwagi celowo NIE są ustawiane z wklejonego wiersza - kolumna Uwagi w
-    # pliku kampanii to co innego niż Zlecenie.pola.uwagi (uwaga na
-    # dokumencie dla klienta) - do wypełnienia ręcznie, patrz pole niżej.
+    # Domyślnie Uwagi NIE są ustawiane z wklejonego wiersza - kolumna Uwagi w
+    # pliku kampanii to co innego niż Zlecenie.pola.uwagi (uwaga na dokumencie
+    # dla klienta), do wypełnienia ręcznie. Ustawienie "Wspólne pole Uwagi"
+    # (patrz kreator.pokaz_ustawienia) każe je scalić.
+    if ustawienia.wczytaj().get("uwagi_wspolne") and wspolne.get("uwagi"):
+        stan.uwagi = wspolne["uwagi"]
     stan.okresy = okresy
     # Nie skaczemy od razu do okresów — "Brand", "Capping" i "Uwagi" nie są
     # częścią wklejanego wiersza, więc przełączamy na widok formularza (te

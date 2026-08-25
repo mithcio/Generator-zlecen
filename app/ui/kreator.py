@@ -238,6 +238,11 @@ class Kreator:
             expand=True,
         )
 
+        checkbox_uwagi_wspolne = ft.Checkbox(
+            label="Wspólne pole Uwagi (wiersz do pliku kampanii ↔ 4.7 Uwagi na zleceniu)",
+            value=bool(biezace.get("uwagi_wspolne")),
+        )
+
         dd_jezyk_excel = ft.Dropdown(
             label="Język Excela na tym komputerze",
             value=biezace.get("jezyk_excel") or "EN",
@@ -284,6 +289,7 @@ class Kreator:
                 domyslny_account_manager=None if akant in (None, "brak") else akant,
                 folder_eksportu=pole_folder.value or None,
                 jezyk_excel=dd_jezyk_excel.value or "EN",
+                uwagi_wspolne=checkbox_uwagi_wspolne.value or False,
             )
             self.page.pop_dialog()
             self.odswiez()
@@ -319,6 +325,18 @@ class Kreator:
                         color=ft.Colors.GREY_700,
                     ),
                     dd_jezyk_excel,
+                    ft.Divider(),
+                    ft.Text("Pole Uwagi", weight=ft.FontWeight.BOLD, size=12),
+                    ft.Text(
+                        "Zaznacz, żeby pole 4.7 Uwagi (zlecenie dla klienta) i kolumna Uwagi "
+                        "wiersza do pliku kampanii były tą samą treścią - w obie strony "
+                        "(wklejenie wiersza uzupełni 4.7, a wygenerowany wiersz przeniesie "
+                        "4.7 z powrotem do kolumny Uwagi). Odznaczone = jak dotychczas, dwa "
+                        "niezależne pola.",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    checkbox_uwagi_wspolne,
                     ft.Divider(),
                     ft.Text("Folder zapisu zleceń", weight=ft.FontWeight.BOLD, size=12),
                     ft.Row(

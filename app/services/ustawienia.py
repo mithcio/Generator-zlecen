@@ -39,6 +39,12 @@ DOMYSLNE = {
     # przecinek) albo "PL" (JEŻELI/ADR.POŚR/WIERSZ, średnik). Domyślnie "EN",
     # bo to dotychczasowe (jedyne) zachowanie appki.
     "jezyk_excel": "EN",
+    # Czy kolumna Uwagi wiersza wklejanego do pliku kampanii i pole 4.7 Uwagi
+    # na zleceniu dla klienta mają być tym samym tekstem (w obie strony:
+    # eksport_wiersza.py przy generowaniu wiersza, parser_wiersza.py przy
+    # wklejaniu) - domyślnie False, bo to dwa pojęciowo różne pola (patrz
+    # komentarze w tych modułach), scalenie jest świadomym wyborem użytkownika.
+    "uwagi_wspolne": False,
 }
 
 

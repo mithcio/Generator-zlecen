@@ -18,10 +18,13 @@ from app.models.zlecenie import Zlecenie
 from app.services import ustawienia
 
 
-def _fmt_liczba(x: float) -> str:
-    if x == int(x):
-        return str(int(x))
-    return f"{x:.2f}"
+def _fmt_liczba(x: float, jezyk_excel: str) -> str:
+    """Separator dziesiętny też zależy od językowej wersji Excela (jak nazwy
+    funkcji w _formula_liczby) - wklejony tekst typu "29.4" nie jest
+    rozpoznawany jako liczba przez polski Excel (oczekuje przecinka), więc
+    zostaje tekstem i psuje dalsze wyliczenia w pliku kampanii."""
+    s = str(int(x)) if x == int(x) else f"{x:.2f}"
+    return s.replace(".", ",") if jezyk_excel == "PL" else s
 
 
 def _formula_liczby(model_sprzedazy: str, jezyk_excel: str) -> str:
@@ -40,7 +43,9 @@ def _formula_liczby(model_sprzedazy: str, jezyk_excel: str) -> str:
     return f'=IF(INDIRECT("K"&ROW())=0,0,INDIRECT("M"&ROW())/INDIRECT("K"&ROW()){mnoznik})'
 
 
-def _zbuduj_wiersz(zlecenie: Zlecenie, okres: Okres, jezyk_excel: str) -> str:
+def _zbuduj_wiersz(
+    zlecenie: Zlecenie, okres: Okres, jezyk_excel: str, uwagi_wspolne: bool
+) -> str:
     pola = zlecenie.pola
     przejsciowa = "TAK" if len(zlecenie.okresy) > 1 else "NIE"
     # Dla klienta bezpośredniego (Sp. z o.o.) kolumna Klient w źródle jest
@@ -56,14 +61,14 @@ def _zbuduj_wiersz(zlecenie: Zlecenie, okres: Okres, jezyk_excel: str) -> str:
         przejsciowa,
         pola.format_reklamowy,
         pola.podmiot_realizujacy,
-        # Kolumna Uwagi w pliku kampanii to co innego niż Zlecenie.pola.uwagi
-        # (uwaga na dokumencie dla klienta) - nie wpisujemy jej tutaj z
-        # powrotem, patrz ustalenia z użytkownikiem.
-        "",
+        # Kolumna Uwagi w pliku kampanii to domyślnie co innego niż
+        # Zlecenie.pola.uwagi (uwaga na dokumencie dla klienta) - zostaje
+        # pusta, chyba że ustawienie "Wspólne pole Uwagi" każe je scalić.
+        pola.uwagi if uwagi_wspolne else "",
         pola.model_sprzedazy,
-        _fmt_liczba(pola.koszt_jednostkowy),
+        _fmt_liczba(pola.koszt_jednostkowy, jezyk_excel),
         pola.nr_zlecenia,
-        _fmt_liczba(okres.budzet),
+        _fmt_liczba(okres.budzet, jezyk_excel),
         okres.data_startu.strftime("%d.%m.%Y"),
         okres.data_konca.strftime("%d.%m.%Y"),
         _formula_liczby(pola.model_sprzedazy, jezyk_excel),
@@ -72,7 +77,7 @@ def _zbuduj_wiersz(zlecenie: Zlecenie, okres: Okres, jezyk_excel: str) -> str:
 
 
 def zbuduj_wiersze_do_wklejenia_per_okres(
-    zlecenie: Zlecenie, jezyk_excel: str | None = None
+    zlecenie: Zlecenie, jezyk_excel: str | None = None, uwagi_wspolne: bool | None = None
 ) -> list[tuple[Okres, str]]:
     """Jak zbuduj_wiersze_do_wklejenia, ale zwraca listę (okres, wiersz) -
     do pokazania jako osobne pole tekstowe per miesiąc, każde podpisane
@@ -82,15 +87,23 @@ def zbuduj_wiersze_do_wklejenia_per_okres(
 
     jezyk_excel: "EN"/"PL" - domyślnie (None) brany z Ustawień, bo zależy od
     komputera, na którym wiersz zostanie wklejony, nie od danych zlecenia."""
-    if jezyk_excel is None:
-        jezyk_excel = ustawienia.wczytaj()["jezyk_excel"]
+    if jezyk_excel is None or uwagi_wspolne is None:
+        biezace = ustawienia.wczytaj()
+        jezyk_excel = jezyk_excel if jezyk_excel is not None else biezace["jezyk_excel"]
+        uwagi_wspolne = uwagi_wspolne if uwagi_wspolne is not None else bool(biezace["uwagi_wspolne"])
     posortowane = sorted(zlecenie.okresy, key=lambda o: o.data_startu)
-    return [(okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel)) for okres in posortowane]
+    return [
+        (okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel, uwagi_wspolne))
+        for okres in posortowane
+    ]
 
 
-def zbuduj_wiersze_do_wklejenia(zlecenie: Zlecenie, jezyk_excel: str | None = None) -> str:
+def zbuduj_wiersze_do_wklejenia(
+    zlecenie: Zlecenie, jezyk_excel: str | None = None, uwagi_wspolne: bool | None = None
+) -> str:
     """Jeden wiersz tekstu per okres (miesiąc), rozdzielone nowymi liniami -
     gotowe do wklejenia bezpośrednio do zakładek miesięcznych pliku kampanii."""
     return "\n".join(
-        wiersz for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(zlecenie, jezyk_excel)
+        wiersz
+        for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(zlecenie, jezyk_excel, uwagi_wspolne)
     )

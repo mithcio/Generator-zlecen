@@ -645,6 +645,27 @@ def test_krok2_wklej_nie_ustawia_uwag_z_kolumny_uwagi_pliku_kampanii():
     assert stan.uwagi == ""
 
 
+def test_krok2_wklej_ustawia_uwagi_gdy_ustawienie_wspolne_wlaczone():
+    ustawienia.zapisz(uwagi_wspolne=True)
+    wiersz = "\t".join(
+        [
+            "Test", "Initiative Media Warszawa sp. z o.o.", "Colian", "Paulina Kowalik",
+            "KIDS", "NIE", "In-game audio KIDS", "Sp. k.", "E15/2026/PLAN/028333", "CPM", "26",
+            "K/2026/078", "1000", "01.07.2026", "31.07.2026",
+        ]
+    )
+    stan = StanKreatora(
+        krok=2, account_manager="Igor Samul", podmiot_realizujacy="Sp. k.", tryb_danych="wklej",
+        wiersze_wklejane=[wiersz],
+    )
+    kreator = FakeKreator(stan)
+    kontrolka = krok2_dane_kampanii.buduj(kreator)
+    przycisk = _znajdz_przez_tekst(kontrolka, ft.FilledButton, "Wczytaj wiersze")
+    przycisk.on_click(None)
+
+    assert stan.uwagi == "E15/2026/PLAN/028333"
+
+
 def test_krok2_formularz_dalej_uzywa_aktualnego_stanu_a_nie_zamrozonego():
     """Regresja: 'Dalej' kiedyś liczył brakujące pola raz, przy pierwszym
     renderze (kiedy formularz jest pusty) — więc nawet po wypełnieniu

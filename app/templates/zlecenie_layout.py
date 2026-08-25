@@ -126,6 +126,6 @@ def zbuduj_layout(
             "email Account Managera reprezentującego Mediafarm, z którym uzgadniane są "
             f"warunki zlecenia: {kontakt_accounta.get('email', '')}"
         ),
-        Tekst(f"Data: ______________ / ___________ / {date.today().year} r."),
+        Tekst(f"Data: {date.today().strftime('%d.%m.%Y')} r."),
         LiniaPodpisu("Podpis i pieczęć Mediafarm", "Podpis i pieczęć Zlecającego"),
     ]

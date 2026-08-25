@@ -4,6 +4,7 @@ pobierania w przeglądarce; appka sama się nie podmienia (uruchomiona .exe
 nie może nadpisać samej siebie) - użytkownik ściąga i uruchamia instalkę
 ręcznie, tak jak przy pierwszej instalacji."""
 import json
+import sys
 import urllib.error
 import urllib.request
 import webbrowser
@@ -14,7 +15,7 @@ API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 
 # Bump przy każdym wydaniu (razem z --product-version w komendzie `flet pack`
 # i z tagiem gita) - to jedyne miejsce, które appka odpytuje o samą siebie.
-WERSJA_APP = "1.0.12"
+WERSJA_APP = "1.0.13"
 
 
 @dataclass
@@ -61,10 +62,23 @@ def sprawdz() -> WynikSprawdzenia:
         return WynikSprawdzenia(dostepna_nowsza=False, wersja_najnowsza=tag)
 
     url = dane.get("html_url") or f"https://github.com/{REPO}/releases/latest"
-    for asset in dane.get("assets") or []:
-        if str(asset.get("name", "")).lower().endswith((".zip", ".exe")):
+    assets = dane.get("assets") or []
+    # Release ma DWA assety (GeneratorZlecen-windows.zip i
+    # GeneratorZlecen-macos.zip, patrz build-and-release.yml) - branie
+    # pierwszego pasującego rozszerzenia bez patrzenia na platformę dawało
+    # np. Windowsowi link do paczki macOS. Nazwa assetu musi zawierać nazwę
+    # własnej platformy.
+    fragment_platformy = {"win32": "windows", "darwin": "macos"}.get(sys.platform)
+    for asset in assets:
+        nazwa = str(asset.get("name", "")).lower()
+        if fragment_platformy and fragment_platformy in nazwa and nazwa.endswith((".zip", ".exe")):
             url = asset.get("browser_download_url") or url
             break
+    else:
+        for asset in assets:
+            if str(asset.get("name", "")).lower().endswith((".zip", ".exe")):
+                url = asset.get("browser_download_url") or url
+                break
 
     return WynikSprawdzenia(dostepna_nowsza=True, wersja_najnowsza=tag, url_do_otwarcia=url)
 
