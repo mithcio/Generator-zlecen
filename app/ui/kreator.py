@@ -238,6 +238,16 @@ class Kreator:
             expand=True,
         )
 
+        dd_jezyk_excel = ft.Dropdown(
+            label="Język Excela na tym komputerze",
+            value=biezace.get("jezyk_excel") or "EN",
+            options=[
+                ft.DropdownOption(key="PL", text="Polski"),
+                ft.DropdownOption(key="EN", text="English"),
+            ],
+            expand=True,
+        )
+
         pole_folder = ft.TextField(
             label="Folder zapisu wygenerowanych zleceń (nadrzędny)",
             value=biezace.get("folder_eksportu") or str(eksport_nazwy.FOLDER_EKSPORTU_DOMYSLNY),
@@ -273,6 +283,7 @@ class Kreator:
                 sciezka_numery_zlecen=pole_numery.value or None,
                 domyslny_account_manager=None if akant in (None, "brak") else akant,
                 folder_eksportu=pole_folder.value or None,
+                jezyk_excel=dd_jezyk_excel.value or "EN",
             )
             self.page.pop_dialog()
             self.odswiez()
@@ -298,6 +309,16 @@ class Kreator:
                         color=ft.Colors.GREY_700,
                     ),
                     dd_akant,
+                    ft.Divider(),
+                    ft.Text("Język Excela", weight=ft.FontWeight.BOLD, size=12),
+                    ft.Text(
+                        "Decyduje o nazwach funkcji w formule wklejanej do pliku kampanii "
+                        "(krok „Pokaż wiersz(e) do pliku kampanii”) - musi zgadzać się z "
+                        "wersją językową Excela na TYM komputerze, nie z wersją Windows.",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    dd_jezyk_excel,
                     ft.Divider(),
                     ft.Text("Folder zapisu zleceń", weight=ft.FontWeight.BOLD, size=12),
                     ft.Row(

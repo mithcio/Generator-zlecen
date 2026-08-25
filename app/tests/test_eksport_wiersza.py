@@ -54,7 +54,7 @@ def test_dwa_okresy_daja_dwa_wiersze_przejsciowe_posortowane_chronologicznie():
 
 def test_formula_liczby_cpm_ma_mnoznik_tysiac_i_jest_niezalezna_od_wiersza():
     zlecenie = _zlecenie(model_sprzedazy="CPM")
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN").split("\t")
     formula = kolumny[-1]
     assert formula.startswith("=")
     assert "*1000" in formula
@@ -64,13 +64,30 @@ def test_formula_liczby_cpm_ma_mnoznik_tysiac_i_jest_niezalezna_od_wiersza():
 
 def test_formula_liczby_cpc_bez_mnoznika():
     zlecenie = _zlecenie(model_sprzedazy="CPC", koszt_jednostkowy=2.0)
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN").split("\t")
     assert "*1000" not in kolumny[-1]
 
 
 def test_ff_liczba_to_literalna_jedynka_bez_formuly():
     zlecenie = _zlecenie(model_sprzedazy="FF", koszt_jednostkowy=0.0)
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN").split("\t")
+    assert kolumny[-1] == "1"
+
+
+def test_formula_liczby_pl_uzywa_polskich_nazw_funkcji_i_srednikow():
+    zlecenie = _zlecenie(model_sprzedazy="CPM")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL").split("\t")
+    formula = kolumny[-1]
+    assert formula.startswith("=JEŻELI(")
+    assert "ADR.POŚR(" in formula
+    assert "WIERSZ()" in formula
+    assert ";" in formula
+    assert "IF(" not in formula and "INDIRECT(" not in formula and "ROW()" not in formula
+
+
+def test_formula_liczby_ff_jest_ta_sama_niezaleznie_od_jezyka():
+    zlecenie = _zlecenie(model_sprzedazy="FF", koszt_jednostkowy=0.0)
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL").split("\t")
     assert kolumny[-1] == "1"
 
 

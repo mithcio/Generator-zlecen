@@ -33,6 +33,12 @@ DOMYSLNE = {
     "sciezka_numery_zlecen": None,
     "domyslny_account_manager": None,
     "folder_eksportu": None,
+    # Nazwy funkcji i separator argumentów w formułach wklejanych jako tekst
+    # do pliku kampanii (patrz eksport_wiersza.py) zależą od językowej wersji
+    # Excela na komputerze, na którym się je wklei - "EN" (IF/INDIRECT/ROW,
+    # przecinek) albo "PL" (JEŻELI/ADR.POŚR/WIERSZ, średnik). Domyślnie "EN",
+    # bo to dotychczasowe (jedyne) zachowanie appki.
+    "jezyk_excel": "EN",
 }
 
 

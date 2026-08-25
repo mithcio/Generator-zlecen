@@ -15,6 +15,7 @@ dalej liczy z właściwych, lokalnych komórek).
 """
 from app.models.okres import Okres
 from app.models.zlecenie import Zlecenie
+from app.services import ustawienia
 
 
 def _fmt_liczba(x: float) -> str:
@@ -23,14 +24,23 @@ def _fmt_liczba(x: float) -> str:
     return f"{x:.2f}"
 
 
-def _formula_liczby(model_sprzedazy: str) -> str:
+def _formula_liczby(model_sprzedazy: str, jezyk_excel: str) -> str:
+    """Nazwy funkcji i separator argumentów zależą od językowej wersji
+    Excela, do której wiersz zostanie wklejony (ustawienie "Język Excela"
+    w Ustawieniach) - polski Excel nie rozpoznaje angielskich nazw funkcji
+    (IF/INDIRECT/ROW) ani przecinka jako separatora argumentów."""
     if model_sprzedazy == "FF":
         return "1"
     mnoznik = "*1000" if model_sprzedazy == "CPM" else ""
+    if jezyk_excel == "PL":
+        return (
+            f'=JEŻELI(ADR.POŚR("K"&WIERSZ())=0;0;'
+            f'ADR.POŚR("M"&WIERSZ())/ADR.POŚR("K"&WIERSZ()){mnoznik})'
+        )
     return f'=IF(INDIRECT("K"&ROW())=0,0,INDIRECT("M"&ROW())/INDIRECT("K"&ROW()){mnoznik})'
 
 
-def _zbuduj_wiersz(zlecenie: Zlecenie, okres: Okres) -> str:
+def _zbuduj_wiersz(zlecenie: Zlecenie, okres: Okres, jezyk_excel: str) -> str:
     pola = zlecenie.pola
     przejsciowa = "TAK" if len(zlecenie.okresy) > 1 else "NIE"
     # Dla klienta bezpośredniego (Sp. z o.o.) kolumna Klient w źródle jest
@@ -56,22 +66,31 @@ def _zbuduj_wiersz(zlecenie: Zlecenie, okres: Okres) -> str:
         _fmt_liczba(okres.budzet),
         okres.data_startu.strftime("%d.%m.%Y"),
         okres.data_konca.strftime("%d.%m.%Y"),
-        _formula_liczby(pola.model_sprzedazy),
+        _formula_liczby(pola.model_sprzedazy, jezyk_excel),
     ]
     return "\t".join(str(k) if k is not None else "" for k in kolumny)
 
 
-def zbuduj_wiersze_do_wklejenia_per_okres(zlecenie: Zlecenie) -> list[tuple[Okres, str]]:
+def zbuduj_wiersze_do_wklejenia_per_okres(
+    zlecenie: Zlecenie, jezyk_excel: str | None = None
+) -> list[tuple[Okres, str]]:
     """Jak zbuduj_wiersze_do_wklejenia, ale zwraca listę (okres, wiersz) -
     do pokazania jako osobne pole tekstowe per miesiąc, każde podpisane
     zakresem dat, którego dotyczy (każdy miesiąc trafia do innej zakładki
     pliku kampanii, więc jedno wspólne pole tekstowe myliło, do której
-    zakładki wkleić który wiersz)."""
+    zakładki wkleić który wiersz).
+
+    jezyk_excel: "EN"/"PL" - domyślnie (None) brany z Ustawień, bo zależy od
+    komputera, na którym wiersz zostanie wklejony, nie od danych zlecenia."""
+    if jezyk_excel is None:
+        jezyk_excel = ustawienia.wczytaj()["jezyk_excel"]
     posortowane = sorted(zlecenie.okresy, key=lambda o: o.data_startu)
-    return [(okres, _zbuduj_wiersz(zlecenie, okres)) for okres in posortowane]
+    return [(okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel)) for okres in posortowane]
 
 
-def zbuduj_wiersze_do_wklejenia(zlecenie: Zlecenie) -> str:
+def zbuduj_wiersze_do_wklejenia(zlecenie: Zlecenie, jezyk_excel: str | None = None) -> str:
     """Jeden wiersz tekstu per okres (miesiąc), rozdzielone nowymi liniami -
     gotowe do wklejenia bezpośrednio do zakładek miesięcznych pliku kampanii."""
-    return "\n".join(wiersz for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(zlecenie))
+    return "\n".join(
+        wiersz for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(zlecenie, jezyk_excel)
+    )
