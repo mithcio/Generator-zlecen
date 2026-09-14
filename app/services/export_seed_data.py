@@ -24,8 +24,13 @@ from openpyxl.formatting.formatting import ConditionalFormattingList
 # Domyślny codepage konsoli Windows (cp1252) nie zna polskich znaków - bez
 # tego print() z "ń"/"ó" itp. wywala UnicodeEncodeError w połowie skryptu,
 # po zapisaniu części plików JSON, ale bez pozostałych (potwierdzone: właśnie
-# tak się stało przy exporcie klienci_agencyjni.json).
-if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+# tak się stało przy exporcie klienci_agencyjni.json). getattr zamiast
+# .encoding wprost - w spakowanej appce na macOS sys.stdout bywa własnym
+# obiektem runtime'u Fleta (_TeeWriter) bez atrybutu encoding wcale, nie
+# zwykłym strumieniem ani None (potwierdzony crash: AttributeError
+# "'_TeeWriter' object has no attribute 'encoding'").
+encoding = getattr(sys.stdout, "encoding", None)
+if encoding and encoding.lower() != "utf-8" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent.parent
