@@ -1,6 +1,5 @@
 """Orkiestrator kreatora: trzyma stan, przełącza kroki, wspólne akcje UI
 (błędy, nawigacja, ustawienia) wołane przez poszczególne kroki."""
-import sys
 from pathlib import Path
 
 import flet as ft
@@ -10,7 +9,7 @@ from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
 from app.services import numeracja
 from app.services import ustawienia
-from app.services.lokalizacje import katalog_danych_uzytkownika
+from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 from app.ui import (
     krok1_podmiot,
     krok2_dane_kampanii,
@@ -363,7 +362,7 @@ class Kreator:
                                 weight=ft.FontWeight.BOLD,
                             ),
                         ]
-                        if getattr(sys, "frozen", False)
+                        if czy_spakowana_appka()
                         else []
                     ),
                 ],

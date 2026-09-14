@@ -28,13 +28,13 @@ if "app" not in sys.modules:
         _app_alias.__path__ = [os.path.dirname(os.path.abspath(__file__))]
         sys.modules["app"] = _app_alias
 
-from app.services.lokalizacje import katalog_danych_uzytkownika
+from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 
 # Folder na dane wgrywane ręcznie po instalacji (mediafarm.json, podmioty.json
 # - patrz lokalizacje.py) ma istnieć od razu po pierwszym uruchomieniu, nie
 # dopiero gdy coś do niego zapisze appka (np. Ustawienia dopiero po kliknięciu
 # "Zapisz") - inaczej nie ma go gdzie wkleić plikami z Findera/Eksploratora.
-if getattr(sys, "frozen", False):
+if czy_spakowana_appka():
     katalog_danych_uzytkownika().mkdir(parents=True, exist_ok=True)
 
 # W spakowanej appce (flet pack, --noconsole/.app bez terminala) sys.stdout/

@@ -8,21 +8,20 @@ bezpośrednio użytkownik przez UI — stąd nie ma go w .gitignore razem z
 resztą wrażliwych danych, ale i tak nie trafia do repo (ścieżki są
 specyficzne dla maszyny)."""
 import json
-import sys
 from pathlib import Path
 
-from app.services.lokalizacje import katalog_danych_uzytkownika
+from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 
 
 def _katalog_ustawien() -> Path:
-    """W spakowanej appce (PyInstaller) app/data/ żyje w tymczasowym folderze
+    """W spakowanej appce app/data/ żyje w tymczasowym folderze
     rozpakowywanym na nowo przy każdym starcie — zapis tam zniknąłby przy
     następnym uruchomieniu. Ustawienia (ścieżka do Numery_zlecen_2026.xlsx
     i inne) muszą przetrwać między sesjami, więc w wersji spakowanej trafiają
     do trwałego folderu danych użytkownika (patrz lokalizacje.py); w wersji
     uruchamianej z kodu źródłowego zostają jak dotąd w app/data/, żeby nie
     zaskakiwać podczas developmentu."""
-    if getattr(sys, "frozen", False):
+    if czy_spakowana_appka():
         return katalog_danych_uzytkownika()
     return Path(__file__).resolve().parent.parent / "data"
 

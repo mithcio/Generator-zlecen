@@ -4,13 +4,12 @@ dane spółek Mediafarm / kontaktów accountów.
 """
 import json
 import re
-import sys
 from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
 from app.models.podmiot import DanePodmiotu, SpolkaMediafarm
-from app.services.lokalizacje import katalog_danych_uzytkownika
+from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -23,7 +22,7 @@ DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 # dotąd: app/data/ - stąd funkcja (nie stała), żeby testy mogły
 # monkeypatchować DATA_DIR i nadal trafiać w to samo miejsce.
 def _katalog_uzytkownika() -> Path:
-    if getattr(sys, "frozen", False):
+    if czy_spakowana_appka():
         return katalog_danych_uzytkownika()
     return DATA_DIR
 
