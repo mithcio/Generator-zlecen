@@ -28,10 +28,23 @@ def test_czy_spakowana_appka_wykrywa_sys_frozen(monkeypatch):
     assert lokalizacje.czy_spakowana_appka() is True
 
 
-def test_czy_spakowana_appka_wykrywa_splaszczony_bundle_macos(monkeypatch):
-    # `flet build macos` (serious_python) nie ustawia sys.frozen wcale, ale
-    # w runtime rozpakowuje app/ do katalogu "serious_python_tempXXXXXXX" -
-    # ten sam sygnał, którym się to wykrywa (patrz komentarz w lokalizacje.py).
+def test_czy_spakowana_appka_wykrywa_bundle_macos(monkeypatch):
+    # `flet build macos` (serious_python) nie ustawia sys.frozen wcale - w
+    # runtime appka dziala z main.pyc wewnatrz samego .app bundla, sciezka
+    # potwierdzona diagnostyka z realnego Maca (patrz komentarz w
+    # lokalizacje.py).
+    monkeypatch.delattr(lokalizacje.sys, "frozen", raising=False)
+    monkeypatch.setattr(
+        lokalizacje,
+        "__file__",
+        "/Applications/Generator Zlecen.app/Contents/Resources/"
+        "serious_python_darwin_serious_python_darwin.bundle/Contents/Resources/"
+        "app/services/lokalizacje.pyc",
+    )
+    assert lokalizacje.czy_spakowana_appka() is True
+
+
+def test_czy_spakowana_appka_wykrywa_tymczasowy_katalog_kompilacji(monkeypatch):
     monkeypatch.delattr(lokalizacje.sys, "frozen", raising=False)
     monkeypatch.setattr(
         lokalizacje, "__file__", "/private/var/.../serious_python_tempXYZ/services/lokalizacje.py"

@@ -30,38 +30,6 @@ if "app" not in sys.modules:
 
 from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 
-# TYMCZASOWA diagnostyka (do usunięcia po znalezieniu przyczyny pustej listy
-# accountów na macOS) - zapisuje na Pulpit fakty o środowisku uruchomieniowym,
-# niezależnie od tego, czy czy_spakowana_appka() zgadła poprawnie, czy nie.
-# Owinięte w try/except - błąd tutaj nie ma prawa zablokować startu appki.
-try:
-    from pathlib import Path as _Path
-
-    _diag = [
-        f"sys.platform = {sys.platform!r}",
-        f"getattr(sys, 'frozen', False) = {getattr(sys, 'frozen', False)!r}",
-        f"sys.executable = {sys.executable!r}",
-        f"__file__ = {__file__!r}",
-        f"Path(__file__).resolve() = {_Path(__file__).resolve()!r}",
-        f"czy_spakowana_appka() = {czy_spakowana_appka()!r}",
-        f"katalog_danych_uzytkownika() = {katalog_danych_uzytkownika()!r}",
-        f"  .exists() = {katalog_danych_uzytkownika().exists()!r}",
-        f"  mediafarm.json .exists() = {(katalog_danych_uzytkownika() / 'mediafarm.json').exists()!r}",
-    ]
-    _data_dir = _Path(__file__).resolve().parent / "data"
-    _diag.append(f"app/data (DATA_DIR) = {_data_dir!r}")
-    _diag.append(f"  mediafarm.json .exists() = {(_data_dir / 'mediafarm.json').exists()!r}")
-    _Path.home().joinpath("Desktop", "GeneratorZlecen_diagnostyka.txt").write_text(
-        "\n".join(_diag), encoding="utf-8"
-    )
-except Exception as _diag_err:  # noqa: BLE001 - diagnostyka nie moze wywalic startu
-    try:
-        _Path.home().joinpath("Desktop", "GeneratorZlecen_diagnostyka.txt").write_text(
-            f"Diagnostyka sama wywalila blad: {_diag_err!r}", encoding="utf-8"
-        )
-    except Exception:
-        pass
-
 # Folder na dane wgrywane ręcznie po instalacji (mediafarm.json, podmioty.json
 # - patrz lokalizacje.py) ma istnieć od razu po pierwszym uruchomieniu, nie
 # dopiero gdy coś do niego zapisze appka (np. Ustawienia dopiero po kliknięciu
