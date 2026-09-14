@@ -3,7 +3,7 @@ zębatego w prawym górnym rogu): ścieżka do pliku Numery_zlecen_2026.xlsx,
 domyślny account manager, folder zapisu wygenerowanych zleceń.
 
 W przeciwieństwie do app/data/*.json (dane wsadowe generowane
-scripts/export_seed_data.py) ten plik jest jedynym, który edytuje
+app/services/export_seed_data.py) ten plik jest jedynym, który edytuje
 bezpośrednio użytkownik przez UI — stąd nie ma go w .gitignore razem z
 resztą wrażliwych danych, ale i tak nie trafia do repo (ścieżki są
 specyficzne dla maszyny)."""

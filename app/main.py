@@ -5,6 +5,29 @@ Web:      python app/main.py --web [--port 8550]
 """
 import sys
 
+if "app" not in sys.modules:
+    try:
+        import app  # noqa: F401 - tylko sondowanie, patrz komentarz niżej
+    except ModuleNotFoundError:
+        # `flet build macos` (patrz pyproject.toml [tool.flet.app].path="app"
+        # i build-and-release.yml) pakuje WYŁĄCZNIE zawartość app/ jako korzeń
+        # Pythona w bundlu - ten plik ląduje tam jako "<korzeń>/main.py", a
+        # services/ui/models/... jako podfoldery TEGO korzenia, bez
+        # opakowującego folderu "app" w środku. Import "app.xxx" (używany w
+        # całym kodzie, łącznie z resztą tego pliku) wywala się wtedy z
+        # "ModuleNotFoundError: No module named 'app'" (potwierdzony crash na
+        # macOS) - `flet run`/pytest/Windows (`flet pack`, PyInstaller) NIE
+        # mają tego problemu (u nich prawdziwy pakiet "app" jest już
+        # importowalny, więc `import app` powyżej się udaje i ten blok jest
+        # no-opem). Naprawa: aliasujemy "app" na katalog TEGO pliku, żeby
+        # "app.services"/"app.ui"/... trafiały tam, gdzie faktycznie leżą.
+        import os
+        import types
+
+        _app_alias = types.ModuleType("app")
+        _app_alias.__path__ = [os.path.dirname(os.path.abspath(__file__))]
+        sys.modules["app"] = _app_alias
+
 from app.services.lokalizacje import katalog_danych_uzytkownika
 
 # Folder na dane wgrywane ręcznie po instalacji (mediafarm.json, podmioty.json
@@ -17,7 +40,7 @@ if getattr(sys, "frozen", False):
 # W spakowanej appce (flet pack, --noconsole/.app bez terminala) sys.stdout/
 # sys.stderr to None - nie brakujący plik, tylko dosłownie None, bo nie ma
 # konsoli, do której pisać. Każdy print() albo odwołanie do .encoding (np. w
-# scripts/export_seed_data.py, importowanym niżej) wywaliłoby AttributeError
+# app/services/export_seed_data.py, importowanym niżej) wywaliłoby AttributeError
 # na starcie, zanim cokolwiek się pokaże. W trybie z konsolą (dev,
 # `python app/main.py`) sys.stdout/stderr są normalnym plikiem i ten blok nic
 # nie zmienia. Przekierowane do pliku (nie /dev/null) - inaczej print()/
@@ -36,13 +59,13 @@ if sys.stdout is None or sys.stderr is None:
 import flet as ft
 
 from app.services import ustawienia
-from app.ui.kreator import Kreator
-from scripts.export_seed_data import (
+from app.services.export_seed_data import (
     export_cennik_wydawcow,
     export_klienci_agencyjni,
     export_podmioty,
     export_terminy_platnosci_klientow,
 )
+from app.ui.kreator import Kreator
 
 
 def odswiez_baze_klientow() -> None:

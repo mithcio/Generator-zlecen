@@ -1,6 +1,6 @@
 """Cennik placementów wydawców zewnętrznych (KIDOZ/Adverty/Odeeo/Crazygames/
 POKI/...) — z zakładki "Traffic cennik" w Numery_zlecen_2026.xlsx, patrz
-scripts/export_seed_data.py::export_cennik_wydawcow.
+app/services/export_seed_data.py::export_cennik_wydawcow.
 
 Klucz stawki to (wydawca, format) - "format" nie zawsze jest tym samym, co
 Zlecenie.pola.format_reklamowy: dla KIDOZ/Adverty/Odeeo to dokładnie ta

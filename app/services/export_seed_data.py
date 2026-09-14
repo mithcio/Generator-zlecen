@@ -1,10 +1,16 @@
 """Jednorazowy import danych z plików źródłowych (źródła/) do app/data/*.json.
 
-Uruchamiany ręcznie przy aktualizacji danych rozliczeniowych/słownikowych.
-Aplikacja (app/) nigdy nie otwiera plików xlsm źródłowych w runtime.
+Uruchamiany ręcznie przy aktualizacji danych rozliczeniowych/słownikowych -
+ale export_podmioty/export_klienci_agencyjni/export_terminy_platnosci_klientow/
+export_cennik_wydawcow są WYWOŁYWANE TEŻ przez app/main.py przy każdym starcie
+appki (odświeżenie bazy klientów z Numery_zlecen_2026.xlsx), więc ten plik
+żyje w app/, nie w osobnym scripts/ - `flet build macos` pakuje WYŁĄCZNIE
+zawartość [tool.flet.app.path] (app/), a plik poza nim po prostu by się nie
+znalazł w spakowanej appce (patrz też komentarz w app/main.py o imporcie
+"from app.xxx").
 
 Użycie:
-    python scripts/export_seed_data.py
+    python app/services/export_seed_data.py
 """
 import json
 import re
@@ -22,7 +28,7 @@ from openpyxl.formatting.formatting import ConditionalFormattingList
 if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 ZRODLA = ROOT / "źródła"
 DATA_OUT = ROOT / "app" / "data"
 

@@ -80,7 +80,7 @@ def czy_format_pasuje(wydawca_zewnetrzny: str, format_reklamowy: str) -> bool:
 
 class BladSzablonuWydawcy(Exception):
     """Brak pliku szablonu (przenieś się/uruchom ponownie
-    scripts/export_seed_data.py) — do poprawienia przez użytkownika, nie
+    app/services/export_seed_data.py) — do poprawienia przez użytkownika, nie
     błąd programu."""
 
 
@@ -88,7 +88,7 @@ def _skopiuj_szablon(nazwa_pliku_szablonu: str, sciezka_docelowa: Path) -> openp
     szablon = SZABLONY_DIR / f"{nazwa_pliku_szablonu}.xlsx"
     if not szablon.exists():
         raise BladSzablonuWydawcy(
-            f"Brak szablonu {szablon}. Uruchom scripts/export_seed_data.py, "
+            f"Brak szablonu {szablon}. Uruchom app/services/export_seed_data.py, "
             "żeby go wygenerować/skopiować ze źródeł."
         )
     sciezka_docelowa.parent.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,4 @@
-"""scripts/export_seed_data.py nie ma zwykle testów (offline, ręcznie
+"""app/services/export_seed_data.py nie ma zwykle testów (offline, ręcznie
 uruchamiany skrypt) - ale export_cennik_wydawcow ma nietrywialną heurystykę
 (waluta odczytywana z formatowania komórki, nie z osobnej kolumny), więc
 warto ją sprawdzić wprost - błąd tutaj cicho zepsułby ceny w wygenerowanych
@@ -7,7 +7,7 @@ import json
 
 import openpyxl
 
-from scripts.export_seed_data import _waluta_z_formatu, export_cennik_wydawcow
+from app.services.export_seed_data import _waluta_z_formatu, export_cennik_wydawcow
 
 
 def _zbuduj_plik_cennika(tmp_path):
@@ -28,7 +28,7 @@ def _zbuduj_plik_cennika(tmp_path):
 
 def test_export_cennik_wydawcow_czyta_wydawce_format_i_stawke(tmp_path, monkeypatch):
     plik = _zbuduj_plik_cennika(tmp_path)
-    monkeypatch.setattr("scripts.export_seed_data.DATA_OUT", tmp_path)
+    monkeypatch.setattr("app.services.export_seed_data.DATA_OUT", tmp_path)
     export_cennik_wydawcow(plik)
 
     wynik = json.loads((tmp_path / "cennik_wydawcow.json").read_text(encoding="utf-8"))
@@ -41,7 +41,7 @@ def test_export_cennik_wydawcow_brak_zakladki_daje_pusty_cennik(tmp_path, monkey
     wb = openpyxl.Workbook()
     plik = tmp_path / "Numery_zlecen_2026.xlsx"
     wb.save(plik)
-    monkeypatch.setattr("scripts.export_seed_data.DATA_OUT", tmp_path)
+    monkeypatch.setattr("app.services.export_seed_data.DATA_OUT", tmp_path)
     export_cennik_wydawcow(plik)
     wynik = json.loads((tmp_path / "cennik_wydawcow.json").read_text(encoding="utf-8"))
     assert wynik == {}
