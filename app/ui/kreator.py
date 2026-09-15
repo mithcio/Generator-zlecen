@@ -369,6 +369,16 @@ class Kreator:
                 tight=True,
                 spacing=8,
                 width=480,
+                # Przybyło sekcji (język Excela, pole Uwagi...) - bez scroll ta
+                # kolumna potrafi być wyższa niż okno, dialog ją wtedy po
+                # prostu przycina (potwierdzone realnym zrzutem ekranu, tekst
+                # ucięty w połowie zdania) - a rozwijane listy (Domyślny
+                # account manager, Język Excela) w takiej sytuacji w ogóle się
+                # nie otwierają, bo nie mają się gdzie zmieścić (potwierdzone
+                # w przeglądarce: te same dropdowny działają przy wyższym
+                # oknie, nie działają przy niższym).
+                scroll=ft.ScrollMode.AUTO,
+                height=520,
             ),
             actions=[
                 ft.TextButton("Anuluj", on_click=lambda e: self.page.pop_dialog()),
