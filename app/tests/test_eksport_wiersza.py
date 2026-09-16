@@ -36,7 +36,7 @@ def _zlecenie(model_sprzedazy="CPM", koszt_jednostkowy=26.0, podmiot_realizujacy
 
 def test_jeden_okres_daje_jeden_wiersz_nie_przejsciowy():
     zlecenie = _zlecenie()
-    tekst = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False)
+    tekst = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja")
     wiersze = tekst.splitlines()
     assert len(wiersze) == 1
     kolumny = wiersze[0].split("\t")
@@ -50,7 +50,7 @@ def test_dwa_okresy_daja_dwa_wiersze_przejsciowe_posortowane_chronologicznie():
         Okres(date(2026, 7, 28), date(2026, 7, 31), 5714.29),  # celowo nie po kolei
     ]
     zlecenie = _zlecenie(okresy=okresy)
-    wiersze = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).splitlines()
+    wiersze = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").splitlines()
     assert len(wiersze) == 2
     assert all(w.split("\t")[5] == "TAK" for w in wiersze)
     assert wiersze[0].split("\t")[13] == "28.07.2026"  # lipiec pierwszy mimo kolejnosci wejsciowej
@@ -59,7 +59,7 @@ def test_dwa_okresy_daja_dwa_wiersze_przejsciowe_posortowane_chronologicznie():
 
 def test_formula_liczby_cpm_ma_mnoznik_tysiac_i_jest_niezalezna_od_wiersza():
     zlecenie = _zlecenie(model_sprzedazy="CPM")
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     formula = kolumny[-1]
     assert formula.startswith("=")
     assert "*1000" in formula
@@ -69,19 +69,19 @@ def test_formula_liczby_cpm_ma_mnoznik_tysiac_i_jest_niezalezna_od_wiersza():
 
 def test_formula_liczby_cpc_bez_mnoznika():
     zlecenie = _zlecenie(model_sprzedazy="CPC", koszt_jednostkowy=2.0)
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert "*1000" not in kolumny[-1]
 
 
 def test_ff_liczba_to_literalna_jedynka_bez_formuly():
     zlecenie = _zlecenie(model_sprzedazy="FF", koszt_jednostkowy=0.0)
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[-1] == "1"
 
 
 def test_formula_liczby_pl_uzywa_polskich_nazw_funkcji_i_srednikow():
     zlecenie = _zlecenie(model_sprzedazy="CPM")
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     formula = kolumny[-1]
     assert formula.startswith("=JEŻELI(")
     assert "ADR.POŚR(" in formula
@@ -92,13 +92,13 @@ def test_formula_liczby_pl_uzywa_polskich_nazw_funkcji_i_srednikow():
 
 def test_formula_liczby_ff_jest_ta_sama_niezaleznie_od_jezyka():
     zlecenie = _zlecenie(model_sprzedazy="FF", koszt_jednostkowy=0.0)
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[-1] == "1"
 
 
 def test_liczby_pl_uzywaja_przecinka_jako_separatora_dziesietnego():
     zlecenie = _zlecenie(koszt_jednostkowy=29.4, okresy=[Okres(date(2026, 8, 1), date(2026, 8, 31), 5714.29)])
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[10] == "29,40"  # Koszt jednostkowy
     assert kolumny[12] == "5714,29"  # Budżet
     assert "." not in kolumny[10] and "." not in kolumny[12]
@@ -106,7 +106,7 @@ def test_liczby_pl_uzywaja_przecinka_jako_separatora_dziesietnego():
 
 def test_liczby_en_uzywaja_kropki_jako_separatora_dziesietnego():
     zlecenie = _zlecenie(koszt_jednostkowy=29.4, okresy=[Okres(date(2026, 8, 1), date(2026, 8, 31), 5714.29)])
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[10] == "29.40"  # Koszt jednostkowy
     assert kolumny[12] == "5714.29"  # Budżet
 
@@ -115,9 +115,32 @@ def test_sp_zoo_ma_pusta_kolumne_klient():
     zlecenie = _zlecenie(podmiot_realizujacy="Sp. z o.o.")
     zlecenie.pola.dom_mediowy = "TM Toys sp. z o.o."
     zlecenie.pola.klient = "TM Toys sp. z o.o."
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[1] == "TM Toys sp. z o.o."  # Dom Mediowy
     assert kolumny[2] == ""  # Klient - pusty dla bezposredniego
+
+
+def test_sp_zoo_z_ustawieniem_klient_zapisuje_nazwe_w_kolumnie_klient():
+    zlecenie = _zlecenie(podmiot_realizujacy="Sp. z o.o.")
+    zlecenie.pola.dom_mediowy = "TM Toys sp. z o.o."
+    zlecenie.pola.klient = "TM Toys sp. z o.o."
+    kolumny = zbuduj_wiersze_do_wklejenia(
+        zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="klient"
+    ).split("\t")
+    assert kolumny[1] == ""  # Dom Mediowy - pusty przy tej konwencji
+    assert kolumny[2] == "TM Toys sp. z o.o."  # Klient
+
+
+def test_sp_k_nie_zalezy_od_ustawienia_klienta_bezposredniego():
+    """Ustawienie dotyczy tylko klienta bezpośredniego (Sp. z o.o.) - dla
+    agencji (Sp. k.) obie kolumny mają swoje zwykłe wartości niezależnie od
+    wyboru w Ustawieniach."""
+    zlecenie = _zlecenie(podmiot_realizujacy="Sp. k.")
+    kolumny = zbuduj_wiersze_do_wklejenia(
+        zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="klient"
+    ).split("\t")
+    assert kolumny[1] == "Initiative Media Warszawa sp. z o.o."  # Dom Mediowy
+    assert kolumny[2] == "Colian"  # Klient
 
 
 def test_kolumna_uwagi_pusta_domyslnie_mimo_wypelnionego_pola():
@@ -126,13 +149,13 @@ def test_kolumna_uwagi_pusta_domyslnie_mimo_wypelnionego_pola():
     # trafić z powrotem do kolumny Uwagi pliku kampanii.
     zlecenie = _zlecenie()
     assert zlecenie.pola.uwagi == "Dzieci"
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[8] == ""  # Uwagi
 
 
 def test_kolumna_uwagi_scalona_gdy_ustawienie_wlaczone():
     zlecenie = _zlecenie()
-    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=True).split("\t")
+    kolumny = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=True, klient_bezposredni_pole="agencja").split("\t")
     assert kolumny[8] == "Dzieci"  # Uwagi = Zlecenie.pola.uwagi
 
 
@@ -140,7 +163,7 @@ def test_wiersz_da_sie_z_powrotem_sparsowac_symetrycznie():
     """Wiersz wyeksportowany musi być poprawnie odczytywany przez ten sam
     parser, który obsługuje wklejanie w kroku 2 - to sprawdza symetrię."""
     zlecenie = _zlecenie()
-    wiersz_tekst = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False)
+    wiersz_tekst = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="EN", uwagi_wspolne=False, klient_bezposredni_pole="agencja")
     sparsowany = parsuj_wiersz(wiersz_tekst)
     assert sparsowany["nazwa_kampanii"] == "Colian_Hellena_Lody"
     assert sparsowany["dom_mediowy"] == "Initiative Media Warszawa sp. z o.o."
@@ -154,6 +177,6 @@ def test_wiersz_da_sie_z_powrotem_sparsowac_symetrycznie():
 
 def test_wiersz_pl_da_sie_z_powrotem_sparsowac_mimo_przecinka_dziesietnego():
     zlecenie = _zlecenie(koszt_jednostkowy=29.4)
-    wiersz_tekst = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False)
+    wiersz_tekst = zbuduj_wiersze_do_wklejenia(zlecenie, jezyk_excel="PL", uwagi_wspolne=False, klient_bezposredni_pole="agencja")
     sparsowany = parsuj_wiersz(wiersz_tekst)
     assert sparsowany["koszt_jednostkowy"] == 29.4

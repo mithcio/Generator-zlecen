@@ -242,6 +242,16 @@ class Kreator:
             value=bool(biezace.get("uwagi_wspolne")),
         )
 
+        dd_klient_bezposredni_pole = ft.Dropdown(
+            label="Klient bezpośredni w polu Agencja/Klient",
+            value=biezace.get("klient_bezposredni_pole") or "agencja",
+            options=[
+                ft.DropdownOption(key="agencja", text="Agencja (Dom Mediowy)"),
+                ft.DropdownOption(key="klient", text="Klient"),
+            ],
+            expand=True,
+        )
+
         dd_jezyk_excel = ft.Dropdown(
             label="Język Excela na tym komputerze",
             value=biezace.get("jezyk_excel") or "EN",
@@ -289,6 +299,7 @@ class Kreator:
                 folder_eksportu=pole_folder.value or None,
                 jezyk_excel=dd_jezyk_excel.value or "EN",
                 uwagi_wspolne=checkbox_uwagi_wspolne.value or False,
+                klient_bezposredni_pole=dd_klient_bezposredni_pole.value or "agencja",
             )
             self.page.pop_dialog()
             self.odswiez()
@@ -336,6 +347,17 @@ class Kreator:
                         color=ft.Colors.GREY_700,
                     ),
                     checkbox_uwagi_wspolne,
+                    ft.Divider(),
+                    ft.Text("Klient bezpośredni w polu Agencja/Klient", weight=ft.FontWeight.BOLD, size=12),
+                    ft.Text(
+                        "Dla zlecenia na Sp. z o.o. (klient bezpośredni) wiersz do pliku "
+                        "kampanii zapisuje nazwę klienta w JEDNEJ z tych dwóch kolumn "
+                        "(druga zostaje pusta) - wybierz, w której. Wklejenie wiersza z "
+                        "powrotem działa poprawnie niezależnie od wyboru.",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    dd_klient_bezposredni_pole,
                     ft.Divider(),
                     ft.Text("Folder zapisu zleceń", weight=ft.FontWeight.BOLD, size=12),
                     ft.Row(

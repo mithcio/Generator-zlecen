@@ -44,6 +44,13 @@ DOMYSLNE = {
     # wklejaniu) - domyślnie False, bo to dwa pojęciowo różne pola (patrz
     # komentarze w tych modułach), scalenie jest świadomym wyborem użytkownika.
     "uwagi_wspolne": False,
+    # Klient bezpośredni (Sp. z o.o.) niesie tę samą nazwę w Dom Mediowy i
+    # Klient (patrz krok2_dane_kampanii.py) - przy generowaniu wiersza do
+    # pliku kampanii (eksport_wiersza.py) trzeba wybrać, w KTÓREJ z tych
+    # dwóch kolumn ją zapisać (druga zostaje pusta) - to kwestia osobistego
+    # przyzwyczajenia w zespole, nie ma jednej poprawnej konwencji.
+    # "agencja" (Dom Mediowy) - dotychczasowe, domyślne zachowanie.
+    "klient_bezposredni_pole": "agencja",
 }
 
 

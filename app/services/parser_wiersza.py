@@ -53,6 +53,7 @@ POLA_WSPOLNE_KLUCZE = [
 ]
 
 _PREFIKS_NAZWY = re.compile(r"^\d{2}\.\d{4}_")
+_SZUM_KLIENTA_BEZPOSREDNIEGO = {"", "-", "brak"}
 _FORMATY_DAT = ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%y")
 _WALUTA_RE = re.compile(r"\s*(zł|zl|pln)\s*$", re.IGNORECASE)
 
@@ -184,10 +185,14 @@ def rozdziel_pola_wspolne_i_okresy(
     konfliktów — pól, które różnią się między wierszami i wymagają decyzji
     użytkownika zamiast zgadywania.
 
-    Dla klientów bezpośrednich (Sp. z o.o.) kolumna "Klient" w źródle jest
-    ignorowana (bywa pusta/"-"/"brak" - dane biorą się z kolumny "Dom
-    Mediowy"), więc pomijamy ją przy wykrywaniu konfliktów, żeby nie prosić
-    o rozstrzygnięcie różnicy w polu, którego i tak nie używamy."""
+    Dla klientów bezpośrednich (Sp. z o.o.) kolumna "Klient" w źródle często
+    jest pusta/"-"/"brak" (dane biorą się wtedy z kolumny "Dom Mediowy") -
+    taki szum jest odfiltrowywany, żeby nie zgłaszać go jako konflikt. Ale
+    część osób (patrz ustawienie "Klient bezpośredni w polu Agencja/Klient")
+    robi odwrotnie: wpisuje nazwę klienta bezpośredniego właśnie w kolumnie
+    "Klient", zostawiając "Dom Mediowy" puste - taką (jedną, spójną) wartość
+    już traktujemy normalnie, żeby dało się ją odczytać z powrotem
+    (patrz krok2_dane_kampanii._zastosuj_dane_wklejone)."""
     wspolne: dict = {}
     konflikty: list[KonfliktPola] = []
 
@@ -197,7 +202,17 @@ def rozdziel_pola_wspolne_i_okresy(
 
     for klucz in POLA_WSPOLNE_KLUCZE:
         if klucz == "klient" and wszystkie_sp_zoo:
-            wspolne[klucz] = None
+            wartosci_klient = list(
+                dict.fromkeys(
+                    w["klient"] for w in wiersze
+                    if str(w["klient"]).strip().lower() not in _SZUM_KLIENTA_BEZPOSREDNIEGO
+                )
+            )
+            if len(wartosci_klient) <= 1:
+                wspolne[klucz] = wartosci_klient[0] if wartosci_klient else None
+            else:
+                konflikty.append(KonfliktPola(pole=klucz, wartosci=wartosci_klient))
+                wspolne[klucz] = None
             continue
         wartosci_unikalne = list(dict.fromkeys(w[klucz] for w in wiersze))
         if len(wartosci_unikalne) == 1:

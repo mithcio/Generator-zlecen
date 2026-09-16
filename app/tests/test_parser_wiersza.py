@@ -202,6 +202,28 @@ def test_konflikt_klienta_ignorowany_dla_klientow_bezposrednich():
     assert len(okresy) == 3
 
 
+def test_klient_bezposredni_ze_spojna_wartoscia_w_kolumnie_klient_nie_jest_szumem():
+    """Ustawienie "Klient bezpośredni w polu Agencja/Klient" = "klient" -
+    nazwa klienta bezpośredniego bywa wpisana właśnie w tej kolumnie (nie
+    tylko szum "-"/"brak"/puste) - ma zostać odczytana, nie zignorowana."""
+    wiersz1 = _wiersz_sp_zoo("TM Toys sp. z o.o.", "1000\t01.07.2026\t31.07.2026")
+    wiersz2 = _wiersz_sp_zoo("TM Toys sp. z o.o.", "2000\t01.08.2026\t31.08.2026")
+    wiersze = parsuj_wiersze("\n".join([wiersz1, wiersz2]))
+    wspolne, okresy, konflikty = rozdziel_pola_wspolne_i_okresy(wiersze)
+    assert wspolne["klient"] == "TM Toys sp. z o.o."
+    assert konflikty == []
+
+
+def test_klient_bezposredni_z_dwiema_roznymi_wartosciami_daje_konflikt():
+    wiersz1 = _wiersz_sp_zoo("TM Toys sp. z o.o.", "1000\t01.07.2026\t31.07.2026")
+    wiersz2 = _wiersz_sp_zoo("LEGO", "2000\t01.08.2026\t31.08.2026")
+    wiersze = parsuj_wiersze("\n".join([wiersz1, wiersz2]))
+    wspolne, okresy, konflikty = rozdziel_pola_wspolne_i_okresy(wiersze)
+    pola_z_konfliktem = {k.pole for k in konflikty}
+    assert "klient" in pola_z_konfliktem
+    assert wspolne["klient"] is None
+
+
 def test_konflikt_klienta_nadal_wykrywany_dla_agencji():
     """Dla Sp. k. (agencja pośredniczy) różnice w polu Klient MAJĄ być
     zgłaszane jako konflikt - to nie jest ignorowane pole."""

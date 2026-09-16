@@ -286,9 +286,14 @@ def _zastosuj_dane_wklejone(kreator, wspolne: dict, okresy) -> None:
     stan.nazwa_kampanii = wspolne.get("nazwa_kampanii") or ""
     stan.dom_mediowy = wspolne.get("dom_mediowy") or ""
     if stan.podmiot_realizujacy == "Sp. z o.o.":
-        # klient bezpośredni - kolumna "Klient" w źródle jest ignorowana
-        # (bywa pusta/"-"/"brak"), dane biorą się z kolumny "Dom Mediowy".
-        stan.klient = stan.dom_mediowy
+        # Klient bezpośredni - nazwa bywa wpisana w kolumnie "Dom Mediowy"
+        # (domyślna konwencja) albo w "Klient" (patrz ustawienie "Klient
+        # bezpośredni w polu Agencja/Klient") - bierzemy tę, która jest
+        # faktycznie wypełniona, niezależnie od tego, którą konwencję
+        # akurat wybrał autor wklejanego wiersza.
+        nazwa_bezposredniego = stan.dom_mediowy or wspolne.get("klient") or ""
+        stan.dom_mediowy = nazwa_bezposredniego
+        stan.klient = nazwa_bezposredniego
     else:
         stan.klient = wspolne.get("klient") or ""
     stan.zlecajacy = wspolne.get("zlecajacy") or ""

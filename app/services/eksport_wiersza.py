@@ -44,17 +44,31 @@ def _formula_liczby(model_sprzedazy: str, jezyk_excel: str) -> str:
 
 
 def _zbuduj_wiersz(
-    zlecenie: Zlecenie, okres: Okres, jezyk_excel: str, uwagi_wspolne: bool
+    zlecenie: Zlecenie,
+    okres: Okres,
+    jezyk_excel: str,
+    uwagi_wspolne: bool,
+    klient_bezposredni_pole: str,
 ) -> str:
     pola = zlecenie.pola
     przejsciowa = "TAK" if len(zlecenie.okresy) > 1 else "NIE"
-    # Dla klienta bezpośredniego (Sp. z o.o.) kolumna Klient w źródle jest
-    # pusta - to Dom Mediowy niesie tę samą wartość (patrz krok2_dane_kampanii.py).
-    klient = pola.klient if pola.podmiot_realizujacy == "Sp. k." else ""
+    if pola.podmiot_realizujacy == "Sp. k.":
+        dom_mediowy = pola.dom_mediowy
+        klient = pola.klient
+    else:
+        # Klient bezpośredni (Sp. z o.o.) - dom_mediowy i klient niosą tę samą
+        # wartość (patrz krok2_dane_kampanii.py); w której kolumnie pliku
+        # kampanii ją zapisać to kwestia osobistego przyzwyczajenia w zespole
+        # (ustawienie "Klient bezpośredni w polu Agencja/Klient") - domyślnie
+        # w Agencja (Dom Mediowy), jak dotychczas.
+        if klient_bezposredni_pole == "klient":
+            dom_mediowy, klient = "", pola.dom_mediowy
+        else:
+            dom_mediowy, klient = pola.dom_mediowy, ""
 
     kolumny = [
         pola.nazwa_kampanii,
-        pola.dom_mediowy,
+        dom_mediowy,
         klient,
         pola.zlecajacy,
         pola.target,
@@ -77,7 +91,10 @@ def _zbuduj_wiersz(
 
 
 def zbuduj_wiersze_do_wklejenia_per_okres(
-    zlecenie: Zlecenie, jezyk_excel: str | None = None, uwagi_wspolne: bool | None = None
+    zlecenie: Zlecenie,
+    jezyk_excel: str | None = None,
+    uwagi_wspolne: bool | None = None,
+    klient_bezposredni_pole: str | None = None,
 ) -> list[tuple[Okres, str]]:
     """Jak zbuduj_wiersze_do_wklejenia, ale zwraca listę (okres, wiersz) -
     do pokazania jako osobne pole tekstowe per miesiąc, każde podpisane
@@ -87,23 +104,33 @@ def zbuduj_wiersze_do_wklejenia_per_okres(
 
     jezyk_excel: "EN"/"PL" - domyślnie (None) brany z Ustawień, bo zależy od
     komputera, na którym wiersz zostanie wklejony, nie od danych zlecenia."""
-    if jezyk_excel is None or uwagi_wspolne is None:
+    if jezyk_excel is None or uwagi_wspolne is None or klient_bezposredni_pole is None:
         biezace = ustawienia.wczytaj()
         jezyk_excel = jezyk_excel if jezyk_excel is not None else biezace["jezyk_excel"]
         uwagi_wspolne = uwagi_wspolne if uwagi_wspolne is not None else bool(biezace["uwagi_wspolne"])
+        klient_bezposredni_pole = (
+            klient_bezposredni_pole
+            if klient_bezposredni_pole is not None
+            else biezace["klient_bezposredni_pole"]
+        )
     posortowane = sorted(zlecenie.okresy, key=lambda o: o.data_startu)
     return [
-        (okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel, uwagi_wspolne))
+        (okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel, uwagi_wspolne, klient_bezposredni_pole))
         for okres in posortowane
     ]
 
 
 def zbuduj_wiersze_do_wklejenia(
-    zlecenie: Zlecenie, jezyk_excel: str | None = None, uwagi_wspolne: bool | None = None
+    zlecenie: Zlecenie,
+    jezyk_excel: str | None = None,
+    uwagi_wspolne: bool | None = None,
+    klient_bezposredni_pole: str | None = None,
 ) -> str:
     """Jeden wiersz tekstu per okres (miesiąc), rozdzielone nowymi liniami -
     gotowe do wklejenia bezpośrednio do zakładek miesięcznych pliku kampanii."""
     return "\n".join(
         wiersz
-        for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(zlecenie, jezyk_excel, uwagi_wspolne)
+        for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(
+            zlecenie, jezyk_excel, uwagi_wspolne, klient_bezposredni_pole
+        )
     )

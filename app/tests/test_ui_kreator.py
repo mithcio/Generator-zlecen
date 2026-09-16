@@ -622,6 +622,31 @@ def test_krok2_wklej_spzoo_ignoruje_kolumne_klient():
     assert stan.klient == "TM Toys sp. z o.o."  # nie "-"
 
 
+def test_krok2_wklej_spzoo_odczytuje_nazwe_z_kolumny_klient_gdy_agencja_pusta():
+    """Konwencja odwrotna (ustawienie "Klient bezpośredni w polu Agencja/
+    Klient" = "klient") - nazwa klienta bezpośredniego jest w kolumnie
+    Klient, a Dom Mediowy zostaje pusta. Wklejenie ma zadziałać tak samo
+    dobrze jak w drugą stronę, niezależnie od własnych Ustawień czytającego."""
+    wiersz = "\t".join(
+        [
+            "Test", "", "TM Toys sp. z o.o.", "Jan Testowy",
+            "KIDS", "NIE", "In-game audio KIDS", "Sp. z o.o.", "", "CPM", "26",
+            "S/2026/078", "1000", "01.07.2026", "31.07.2026",
+        ]
+    )
+    stan = StanKreatora(
+        krok=2, account_manager="Igor Samul", podmiot_realizujacy="Sp. z o.o.", tryb_danych="wklej",
+        wiersze_wklejane=[wiersz],
+    )
+    kreator = FakeKreator(stan)
+    kontrolka = krok2_dane_kampanii.buduj(kreator)
+    przycisk = _znajdz_przez_tekst(kontrolka, ft.FilledButton, "Wczytaj wiersze")
+    przycisk.on_click(None)
+
+    assert stan.dom_mediowy == "TM Toys sp. z o.o."
+    assert stan.klient == "TM Toys sp. z o.o."
+
+
 def test_krok2_wklej_nie_ustawia_uwag_z_kolumny_uwagi_pliku_kampanii():
     # Kolumna Uwagi w pliku kampanii to co innego niż Zlecenie.pola.uwagi
     # (uwaga na dokumencie dla klienta) - nigdy nie ma trafiać do stanu
