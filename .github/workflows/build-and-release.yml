@@ -87,9 +87,31 @@ jobs:
           name: macos-build
           path: GeneratorZlecen-macos.zip
 
+  build-android:
+    needs: test
+    # ubuntu-latest ma preinstalowany Android SDK - w przeciwieństwie do iOS,
+    # budowanie APK nie wymaga Maca/Xcode.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: flet build (Android, APK)
+        run: |
+          flet build apk . \
+            --project "Generator Zlecen" \
+            --module-name main \
+            --yes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-build
+          path: build/apk/*.apk
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-windows, build-macos]
+    needs: [build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -99,6 +121,7 @@ jobs:
           gh release create "${{ github.ref_name }}" \
             windows-build/GeneratorZlecen-windows.zip \
             macos-build/GeneratorZlecen-macos.zip \
+            android-build/*.apk \
             --title "${{ github.ref_name }}" \
-            --notes "Automatyczny build (Windows + macOS) przez GitHub Actions. Windows: rozpakuj .zip, uruchom GeneratorZlecen.exe. macOS: rozpakuj .zip, przenieś .app do Programów; pierwsze uruchomienie może wymagać kliknięcia prawym przyciskiem -> Otwórz (Gatekeeper, appka niepodpisana)." \
+            --notes "Automatyczny build (Windows + macOS + Android) przez GitHub Actions. Windows: rozpakuj .zip, uruchom GeneratorZlecen.exe. macOS: rozpakuj .zip, przenieś .app do Programów; pierwsze uruchomienie może wymagać kliknięcia prawym przyciskiem -> Otwórz (Gatekeeper, appka niepodpisana). Android: zainstaluj .apk (trzeba włączyć instalację z nieznanych źródeł - appka nie jest podpisana ani z Play Store)." \
             --repo "${{ github.repository }}"
