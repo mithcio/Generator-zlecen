@@ -12,18 +12,28 @@ NAZWA_FOLDERU = "GeneratorZlecenMediafarm"
 
 def czy_spakowana_appka() -> bool:
     """PyInstaller (Windows, `flet pack`) ustawia sys.frozen=True - ale
-    `flet build macos` (serious_python) NIE ustawia go wcale, więc appka na
-    macOS myliła się z wersją deweloperską: czytała/zapisywała ustawienia i
-    mediafarm.json/podmioty.json do app/data/, folderu który w spakowanej
-    appce żyje wewnątrz samego .app bundla (potwierdzone diagnostyką z
-    realnego Maca: __file__ = ".../Generator Zlecen.app/Contents/Resources/
+    `flet build macos`/`flet build apk` (serious_python) NIE ustawia go wcale,
+    więc appka myliła się z wersją deweloperską: czytała/zapisywała ustawienia
+    i mediafarm.json/podmioty.json do app/data/, folderu który w spakowanej
+    appce żyje wewnątrz samego bundla - stąd puste ustawienia i pusta lista
+    accountów mimo poprawnie wgranych plików do trwałego folderu.
+
+    macOS (potwierdzone diagnostyką z realnego Maca): __file__ = ".../
+    Generator Zlecen.app/Contents/Resources/
     serious_python_darwin_serious_python_darwin.bundle/Contents/Resources/
-    app/main.pyc") - stąd puste ustawienia i pusta lista accountów mimo
-    poprawnie wgranych plików do trwałego folderu. "serious_python" w
-    ścieżce tego pliku łapie ten przypadek (oraz - potwierdzone wcześniejszymi
-    crashami tej samej appki - tymczasowy katalog kompilacji .py->.pyc przy
-    pierwszym uruchomieniu, "serious_python_tempXXXXXXX")."""
+    app/main.pyc" - "serious_python" w ścieżce łapie ten przypadek (oraz
+    tymczasowy katalog kompilacji .py->.pyc przy pierwszym uruchomieniu,
+    "serious_python_tempXXXXXXX").
+
+    Android (potwierdzone diagnostyką z realnego telefonu): __file__ = "/data/
+    data/<pakiet>/files/flet/app/services/lokalizacje.pyc" - BEZ
+    "serious_python" w ścieżce, więc ten sam trik jak na macOS by tu nie
+    zadziałał. sys.platform == "android" jest za to jednoznaczne - to wartość,
+    jakiej CPython nigdy nie zwraca na maszynie deweloperskiej (Windows/macOS/
+    Linux), tylko na realnym urządzeniu z appki zbudowanej `flet build apk`."""
     if getattr(sys, "frozen", False):
+        return True
+    if sys.platform == "android":
         return True
     return "serious_python" in str(Path(__file__).resolve())
 

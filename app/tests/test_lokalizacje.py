@@ -70,3 +70,19 @@ def test_czy_spakowana_appka_wykrywa_tymczasowy_katalog_kompilacji(monkeypatch):
 def test_czy_spakowana_appka_false_w_devie(monkeypatch):
     monkeypatch.delattr(lokalizacje.sys, "frozen", raising=False)
     assert lokalizacje.czy_spakowana_appka() is False
+
+
+def test_czy_spakowana_appka_wykrywa_androida(monkeypatch):
+    # Potwierdzone diagnostyką z realnego telefonu: sys.frozen nieustawione,
+    # __file__ = "/data/data/<pakiet>/files/flet/app/services/lokalizacje.pyc"
+    # - BEZ "serious_python" w ścieżce (inaczej niż na macOS), więc ten trik
+    # by tutaj nie zadziałał. sys.platform == "android" nigdy nie występuje
+    # na maszynie deweloperskiej, więc jest jednoznacznym sygnałem.
+    monkeypatch.delattr(lokalizacje.sys, "frozen", raising=False)
+    monkeypatch.setattr(lokalizacje.sys, "platform", "android")
+    monkeypatch.setattr(
+        lokalizacje,
+        "__file__",
+        "/data/data/com.mediafarm.generatorzlecen/files/flet/app/services/lokalizacje.pyc",
+    )
+    assert lokalizacje.czy_spakowana_appka() is True

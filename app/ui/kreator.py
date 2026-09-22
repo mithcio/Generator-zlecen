@@ -1,6 +1,5 @@
 """Orkiestrator kreatora: trzyma stan, przełącza kroki, wspólne akcje UI
 (błędy, nawigacja, ustawienia) wołane przez poszczególne kroki."""
-import sys
 from pathlib import Path
 
 import flet as ft
@@ -10,7 +9,6 @@ from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
 from app.services import numeracja
 from app.services import ustawienia
-from app.services import lokalizacje
 from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 from app.ui import (
     krok1_podmiot,
@@ -488,28 +486,6 @@ class Kreator:
                     ]
                 ),
                 blad_folder,
-            ]
-        )
-
-        # TYMCZASOWE - do usunięcia po zdiagnozowaniu braku sekcji importu na
-        # Androidzie (ten sam wzorzec, co wcześniejsza diagnostyka macOS):
-        # podejrzenie, że czy_spakowana_appka() nie rozpoznaje poprawnie
-        # spakowanej appki na Androidzie (inna niż na macOS ścieżka bundla),
-        # więc cała sekcja "Dane klienta i spółek" się nie renderuje.
-        tekst_diagnostyki = "\n".join(
-            [
-                f"sys.platform = {sys.platform}",
-                f"sys.frozen = {getattr(sys, 'frozen', None)!r}",
-                f"page.platform = {self.page.platform!r}",
-                f"lokalizacje.__file__ = {Path(lokalizacje.__file__).resolve()}",
-                f"czy_spakowana_appka() = {czy_spakowana_appka()}",
-                f"katalog_danych_uzytkownika() = {katalog_danych_uzytkownika()}",
-            ]
-        )
-        sekcje.append(
-            [
-                ft.Text("Diagnostyka (tymczasowe)", weight=ft.FontWeight.BOLD, size=12),
-                ft.Text(tekst_diagnostyki, size=10, selectable=True, color=ft.Colors.GREY_700),
             ]
         )
 
