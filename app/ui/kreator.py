@@ -360,19 +360,26 @@ class Kreator:
                 status_test_zapisu.color = ft.Colors.RED_800
                 status_test_zapisu.update()
                 return
+            try:
+                rozmiar = Path(sciezka).stat().st_size
+            except OSError as err:
+                status_test_zapisu.value = f"Nie udało się odczytać pliku: {err}"
+                status_test_zapisu.color = ft.Colors.RED_800
+                status_test_zapisu.update()
+                return
             znacznik = f"TEST-ZAPIS {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             try:
                 wb = openpyxl.load_workbook(sciezka)
                 wb.active["A1"] = znacznik
                 wb.save(sciezka)
             except Exception as err:  # diagnostyka - celowo szerokie, do usunięcia
-                status_test_zapisu.value = f"Błąd zapisu: {err}"
+                status_test_zapisu.value = f"Plik ma {rozmiar} bajtów. Błąd zapisu: {err}"
                 status_test_zapisu.color = ft.Colors.RED_800
                 status_test_zapisu.update()
                 return
             status_test_zapisu.value = (
-                f"Zapisano do A1: {znacznik}. Sprawdź na innym urządzeniu/w przeglądarce, "
-                "czy ta zmiana dotarła na OneDrive."
+                f"Plik miał {rozmiar} bajtów przed zapisem. Zapisano do A1: {znacznik}. "
+                "Sprawdź na innym urządzeniu/w przeglądarce, czy ta zmiana dotarła na OneDrive."
             )
             status_test_zapisu.color = ft.Colors.GREEN_800
             status_test_zapisu.update()
