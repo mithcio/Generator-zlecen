@@ -270,6 +270,41 @@ class Kreator:
         )
         blad_folder = ft.Text("", color=ft.Colors.RED_800, size=11)
 
+        status_import = ft.Text("", size=11)
+
+        async def importuj_plik_danych(nazwa_docelowa: str, e: ft.Event) -> None:
+            wynik = await self._file_picker.pick_files(
+                dialog_title=f"Wybierz plik {nazwa_docelowa}",
+                file_type=ft.FilePickerFileType.CUSTOM,
+                allowed_extensions=["json"],
+            )
+            if not wynik:
+                return
+            sciezka_zrodlowa = wynik[0].path
+            # Tryb web: jak przy wybierz_plik_numery, brak pełnej ścieżki -
+            # tu nie ma pola do ręcznego wpisania (plik trzeba faktycznie
+            # skopiować), więc to twardy błąd, nie tylko podpowiedź.
+            if not sciezka_zrodlowa or not Path(sciezka_zrodlowa).is_absolute():
+                status_import.value = (
+                    "Przeglądarka nie udostępnia pełnej ścieżki do wybranego pliku "
+                    "- import działa tylko w wersji desktopowej/mobilnej aplikacji."
+                )
+                status_import.color = ft.Colors.RED_800
+                status_import.update()
+                return
+            try:
+                docelowy_katalog = katalog_danych_uzytkownika()
+                docelowy_katalog.mkdir(parents=True, exist_ok=True)
+                (docelowy_katalog / nazwa_docelowa).write_bytes(Path(sciezka_zrodlowa).read_bytes())
+            except OSError as err:
+                status_import.value = f"Nie udało się zapisać {nazwa_docelowa}: {err}"
+                status_import.color = ft.Colors.RED_800
+                status_import.update()
+                return
+            status_import.value = f"Zaimportowano {nazwa_docelowa}."
+            status_import.color = ft.Colors.GREEN_800
+            status_import.update()
+
         async def wybierz_folder(e: ft.Event) -> None:
             try:
                 wynik = await self._file_picker.get_directory_path(
@@ -373,7 +408,9 @@ class Kreator:
                             ft.Text("Dane klienta i spółek", weight=ft.FontWeight.BOLD, size=12),
                             ft.Text(
                                 "mediafarm.json i podmioty.json (nie trafiają do instalki - dane "
-                                "wrażliwe) wgraj ręcznie, raz na maszynę, do:",
+                                "wrażliwe) - przyciskiem niżej (działa też na telefonie, gdzie nie "
+                                "da się ich po prostu wgrać przez menedżer plików) albo ręcznie, "
+                                "raz na maszynę, do:",
                                 size=11,
                                 color=ft.Colors.GREY_700,
                             ),
@@ -383,6 +420,20 @@ class Kreator:
                                 selectable=True,
                                 weight=ft.FontWeight.BOLD,
                             ),
+                            ft.Row(
+                                [
+                                    ft.OutlinedButton(
+                                        "Importuj mediafarm.json",
+                                        on_click=lambda e: importuj_plik_danych("mediafarm.json", e),
+                                    ),
+                                    ft.OutlinedButton(
+                                        "Importuj podmioty.json",
+                                        on_click=lambda e: importuj_plik_danych("podmioty.json", e),
+                                    ),
+                                ],
+                                spacing=8,
+                            ),
+                            status_import,
                         ]
                         if czy_spakowana_appka()
                         else []

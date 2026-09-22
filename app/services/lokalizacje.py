@@ -33,4 +33,15 @@ def katalog_danych_uzytkownika() -> Path:
         return Path.home() / "Library" / "Application Support" / NAZWA_FOLDERU
     if sys.platform == "win32":
         return Path(os.environ["APPDATA"]) / NAZWA_FOLDERU
+    # Android/iOS (i Linux desktop) - piaskownica appki nie ma odpowiednika
+    # %APPDATA%/Application Support, a Path.home() na Androidzie bywa
+    # nieprzewidywalna (i tak czy inaczej niedostępna z poziomu zwykłego
+    # menedżera plików bez roota). FLET_APP_STORAGE_DATA to oficjalna,
+    # udokumentowana przez Fleta zmienna środowiskowa wskazująca trwały,
+    # zapisywalny katalog appki, ustawiana przez runtime na każdej platformie
+    # (patrz flet.controls.services.storage_paths) - używamy jej, gdy appka
+    # faktycznie działa pod Fletem, zamiast zgadywać ścieżkę samodzielnie.
+    z_fleta = os.environ.get("FLET_APP_STORAGE_DATA")
+    if z_fleta:
+        return Path(z_fleta) / NAZWA_FOLDERU
     return Path.home() / f".{NAZWA_FOLDERU.lower()}"

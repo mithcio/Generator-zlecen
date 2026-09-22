@@ -20,7 +20,22 @@ def test_macos(monkeypatch):
 
 def test_inna_platforma_ma_fallback(monkeypatch):
     monkeypatch.setattr(lokalizacje.sys, "platform", "linux")
+    monkeypatch.delenv("FLET_APP_STORAGE_DATA", raising=False)
     assert lokalizacje.katalog_danych_uzytkownika() == Path.home() / ".generatorzlecenmediafarm"
+
+
+def test_android_uzywa_katalogu_ze_zmiennej_fleta(monkeypatch):
+    # Android (i iOS) nie mają odpowiednika %APPDATA%/Application Support, a
+    # Path.home() w piaskownicy appki jest nieprzewidywalna i tak czy inaczej
+    # niedostępna z poziomu zwykłego menedżera plików bez roota - Flet sam
+    # ustawia tę zmienną w runtime na trwały, zapisywalny katalog appki
+    # (patrz flet.controls.services.storage_paths), więc ma pierwszeństwo
+    # przed zgadywaniem ścieżki po sys.platform.
+    monkeypatch.setattr(lokalizacje.sys, "platform", "linux")
+    monkeypatch.setenv("FLET_APP_STORAGE_DATA", "/data/user/0/com.mediafarm.generatorzlecen/app_flutter/data")
+    assert lokalizacje.katalog_danych_uzytkownika() == Path(
+        "/data/user/0/com.mediafarm.generatorzlecen/app_flutter/data/GeneratorZlecenMediafarm"
+    )
 
 
 def test_czy_spakowana_appka_wykrywa_sys_frozen(monkeypatch):
