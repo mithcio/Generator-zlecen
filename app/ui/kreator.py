@@ -37,7 +37,17 @@ class Kreator:
         self._file_picker = ft.FilePicker()
         self.page.services.append(self._file_picker)
         self.page.appbar = ft.AppBar(
-            title=ft.Text("Generator Zleceń"),
+            title=ft.Row(
+                [
+                    ft.Text("Generator Zleceń"),
+                    # Widoczny numer wersji - żeby zgłaszający problem od razu
+                    # wiedział/mógł podać, jaki build ma zainstalowany (patrz
+                    # WERSJA_APP w aktualizacje.py), bez szukania w Ustawieniach.
+                    ft.Text(f"v{aktualizacje.WERSJA_APP}", size=12, color=ft.Colors.GREY_500),
+                ],
+                spacing=8,
+                vertical_alignment=ft.CrossAxisAlignment.END,
+            ),
             actions=[
                 ft.IconButton(
                     icon=ft.Icons.SYSTEM_UPDATE_ALT,
@@ -189,8 +199,13 @@ class Kreator:
             ft.AlertDialog(title=ft.Text("Aktualizacje"), content=tresc, actions=akcje)
         )
 
-    def pokaz_ustawienia(self) -> None:
+    def pokaz_ustawienia(self, komunikat: str | None = None) -> None:
         biezace = ustawienia.wczytaj()
+        # Na Androidzie/iOS nie ma pliku Numery_zlecen_2026.xlsx (OneDrive nie
+        # jest tam lokalnie zamontowany) - użytkownik świadomie wpisuje numer
+        # ręcznie (patrz krok 2), więc to pole na telefonie jest tylko
+        # niepotrzebnym, mylącym polem w Ustawieniach.
+        mobilna = bool(self.page.platform and self.page.platform.is_mobile())
 
         pole_numery = ft.TextField(
             label="Plik Numery_zlecen_2026.xlsx",
@@ -301,9 +316,13 @@ class Kreator:
                 status_import.color = ft.Colors.RED_800
                 status_import.update()
                 return
-            status_import.value = f"Zaimportowano {nazwa_docelowa}."
-            status_import.color = ft.Colors.GREEN_800
-            status_import.update()
+            # Zamknij i odtwórz dialog od nowa zamiast tylko pokazać status w
+            # miejscu - lista accountów (dd_akant) jest budowana raz, przy
+            # otwarciu dialogu, z lp.lista_accountow() - bez ponownego
+            # zbudowania dialogu użytkownik importuje mediafarm.json, a lista
+            # nadal pokazuje "Brak", co wygląda jak import się nie udał.
+            self.page.pop_dialog()
+            self.pokaz_ustawienia(komunikat=f"Zaimportowano {nazwa_docelowa}.")
 
         async def wybierz_folder(e: ft.Event) -> None:
             try:
@@ -339,9 +358,67 @@ class Kreator:
             self.page.pop_dialog()
             self.odswiez()
 
-        dlg = ft.AlertDialog(
-            title=ft.Text("Ustawienia"),
-            content=ft.Column(
+        sekcje: list[list[ft.Control]] = []
+
+        if komunikat:
+            sekcje.append([ft.Text(komunikat, color=ft.Colors.GREEN_800, size=12)])
+
+        if czy_spakowana_appka():
+            # Pierwsza sekcja, nie ostatnia - bez mediafarm.json appka nie ma
+            # ŻADNEGO accounta do wyboru (patrz "Domyślny account manager"
+            # niżej), więc na świeżej instalacji (zwłaszcza na Androidzie,
+            # gdzie nie da się tych plików wgrać inaczej niż tym przyciskiem)
+            # to jest pierwsza rzecz, którą trzeba zrobić - nie coś do
+            # przewinięcia na sam dół.
+            sekcje.append(
+                [
+                    ft.Text("Dane klienta i spółek", weight=ft.FontWeight.BOLD, size=12),
+                    ft.Text(
+                        "mediafarm.json i podmioty.json (nie trafiają do instalki - dane "
+                        "wrażliwe) - przyciskiem niżej (działa też na telefonie, gdzie nie "
+                        "da się ich po prostu wgrać przez menedżer plików) albo ręcznie, "
+                        "raz na maszynę, do:",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    ft.Text(
+                        str(katalog_danych_uzytkownika()),
+                        size=11,
+                        selectable=True,
+                        weight=ft.FontWeight.BOLD,
+                    ),
+                    ft.Row(
+                        [
+                            ft.OutlinedButton(
+                                "Importuj mediafarm.json",
+                                on_click=lambda e: importuj_plik_danych("mediafarm.json", e),
+                            ),
+                            ft.OutlinedButton(
+                                "Importuj podmioty.json",
+                                on_click=lambda e: importuj_plik_danych("podmioty.json", e),
+                            ),
+                        ],
+                        spacing=8,
+                    ),
+                    status_import,
+                ]
+            )
+
+        sekcje.append(
+            [
+                ft.Text("Domyślny account manager", weight=ft.FontWeight.BOLD, size=12),
+                ft.Text(
+                    "Jeśli wybierzesz nazwisko, krok 1 ustawi je na stałe (bez możliwości "
+                    "zmiany). Wybierz „Brak”, żeby zostawić wolny wybór w kroku 1.",
+                    size=11,
+                    color=ft.Colors.GREY_700,
+                ),
+                dd_akant,
+            ]
+        )
+
+        if not mobilna:
+            sekcje.append(
                 [
                     ft.Text("Plik z numerami zleceń", weight=ft.FontWeight.BOLD, size=12),
                     ft.Row(
@@ -351,94 +428,77 @@ class Kreator:
                         ]
                     ),
                     blad_numery,
-                    ft.Divider(),
-                    ft.Text("Domyślny account manager", weight=ft.FontWeight.BOLD, size=12),
-                    ft.Text(
-                        "Jeśli wybierzesz nazwisko, krok 1 ustawi je na stałe (bez możliwości "
-                        "zmiany). Wybierz „Brak”, żeby zostawić wolny wybór w kroku 1.",
-                        size=11,
-                        color=ft.Colors.GREY_700,
-                    ),
-                    dd_akant,
-                    ft.Divider(),
-                    ft.Text("Język Excela", weight=ft.FontWeight.BOLD, size=12),
-                    ft.Text(
-                        "Decyduje o nazwach funkcji w formule wklejanej do pliku kampanii "
-                        "(krok „Pokaż wiersz(e) do pliku kampanii”) - musi zgadzać się z "
-                        "wersją językową Excela na TYM komputerze, nie z wersją Windows.",
-                        size=11,
-                        color=ft.Colors.GREY_700,
-                    ),
-                    dd_jezyk_excel,
-                    ft.Divider(),
-                    ft.Text("Pole Uwagi", weight=ft.FontWeight.BOLD, size=12),
-                    ft.Text(
-                        "Zaznacz, żeby pole 4.7 Uwagi (zlecenie dla klienta) i kolumna Uwagi "
-                        "wiersza do pliku kampanii były tą samą treścią - w obie strony "
-                        "(wklejenie wiersza uzupełni 4.7, a wygenerowany wiersz przeniesie "
-                        "4.7 z powrotem do kolumny Uwagi). Odznaczone = jak dotychczas, dwa "
-                        "niezależne pola.",
-                        size=11,
-                        color=ft.Colors.GREY_700,
-                    ),
-                    checkbox_uwagi_wspolne,
-                    ft.Divider(),
-                    ft.Text("Klient bezpośredni w polu Agencja/Klient", weight=ft.FontWeight.BOLD, size=12),
-                    ft.Text(
-                        "Dla zlecenia na Sp. z o.o. (klient bezpośredni) wiersz do pliku "
-                        "kampanii zapisuje nazwę klienta w JEDNEJ z tych dwóch kolumn "
-                        "(druga zostaje pusta) - wybierz, w której. Wklejenie wiersza z "
-                        "powrotem działa poprawnie niezależnie od wyboru.",
-                        size=11,
-                        color=ft.Colors.GREY_700,
-                    ),
-                    dd_klient_bezposredni_pole,
-                    ft.Divider(),
-                    ft.Text("Folder zapisu zleceń", weight=ft.FontWeight.BOLD, size=12),
-                    ft.Row(
-                        [
-                            pole_folder,
-                            ft.IconButton(icon=ft.Icons.FOLDER_OPEN, on_click=wybierz_folder),
-                        ]
-                    ),
-                    blad_folder,
-                    *(
-                        [
-                            ft.Divider(),
-                            ft.Text("Dane klienta i spółek", weight=ft.FontWeight.BOLD, size=12),
-                            ft.Text(
-                                "mediafarm.json i podmioty.json (nie trafiają do instalki - dane "
-                                "wrażliwe) - przyciskiem niżej (działa też na telefonie, gdzie nie "
-                                "da się ich po prostu wgrać przez menedżer plików) albo ręcznie, "
-                                "raz na maszynę, do:",
-                                size=11,
-                                color=ft.Colors.GREY_700,
-                            ),
-                            ft.Text(
-                                str(katalog_danych_uzytkownika()),
-                                size=11,
-                                selectable=True,
-                                weight=ft.FontWeight.BOLD,
-                            ),
-                            ft.Row(
-                                [
-                                    ft.OutlinedButton(
-                                        "Importuj mediafarm.json",
-                                        on_click=lambda e: importuj_plik_danych("mediafarm.json", e),
-                                    ),
-                                    ft.OutlinedButton(
-                                        "Importuj podmioty.json",
-                                        on_click=lambda e: importuj_plik_danych("podmioty.json", e),
-                                    ),
-                                ],
-                                spacing=8,
-                            ),
-                            status_import,
-                        ]
-                        if czy_spakowana_appka()
-                        else []
-                    ),
-                ],
+                ]
+            )
+
+        sekcje.append(
+            [
+                ft.Text("Język Excela", weight=ft.FontWeight.BOLD, size=12),
+                ft.Text(
+                    "Decyduje o nazwach funkcji w formule wklejanej do pliku kampanii "
+                    "(krok „Pokaż wiersz(e) do pliku kampanii”) - musi zgadzać się z "
+                    "wersją językową Excela na TYM komputerze, nie z wersją Windows.",
+                    size=11,
+                    color=ft.Colors.GREY_700,
+                ),
+                dd_jezyk_excel,
+            ]
+        )
+
+        sekcje.append(
+            [
+                ft.Text("Pole Uwagi", weight=ft.FontWeight.BOLD, size=12),
+                ft.Text(
+                    "Zaznacz, żeby pole 4.7 Uwagi (zlecenie dla klienta) i kolumna Uwagi "
+                    "wiersza do pliku kampanii były tą samą treścią - w obie strony "
+                    "(wklejenie wiersza uzupełni 4.7, a wygenerowany wiersz przeniesie "
+                    "4.7 z powrotem do kolumny Uwagi). Odznaczone = jak dotychczas, dwa "
+                    "niezależne pola.",
+                    size=11,
+                    color=ft.Colors.GREY_700,
+                ),
+                checkbox_uwagi_wspolne,
+            ]
+        )
+
+        sekcje.append(
+            [
+                ft.Text("Klient bezpośredni w polu Agencja/Klient", weight=ft.FontWeight.BOLD, size=12),
+                ft.Text(
+                    "Dla zlecenia na Sp. z o.o. (klient bezpośredni) wiersz do pliku "
+                    "kampanii zapisuje nazwę klienta w JEDNEJ z tych dwóch kolumn "
+                    "(druga zostaje pusta) - wybierz, w której. Wklejenie wiersza z "
+                    "powrotem działa poprawnie niezależnie od wyboru.",
+                    size=11,
+                    color=ft.Colors.GREY_700,
+                ),
+                dd_klient_bezposredni_pole,
+            ]
+        )
+
+        sekcje.append(
+            [
+                ft.Text("Folder zapisu zleceń", weight=ft.FontWeight.BOLD, size=12),
+                ft.Row(
+                    [
+                        pole_folder,
+                        ft.IconButton(icon=ft.Icons.FOLDER_OPEN, on_click=wybierz_folder),
+                    ]
+                ),
+                blad_folder,
+            ]
+        )
+
+        zawartosc: list[ft.Control] = []
+        for i, sekcja in enumerate(sekcje):
+            if i > 0:
+                zawartosc.append(ft.Divider())
+            zawartosc.extend(sekcja)
+
+        dlg = ft.AlertDialog(
+            title=ft.Text("Ustawienia"),
+            content=ft.Column(
+                zawartosc,
                 tight=True,
                 spacing=8,
                 width=480,
