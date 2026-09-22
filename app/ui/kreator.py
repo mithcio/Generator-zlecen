@@ -330,12 +330,25 @@ class Kreator:
         # `on_click=lambda e: importuj_plik_danych("x", e)` wygląda poprawnie,
         # ale lambda jest zwykłą funkcją synchroniczną - jej wywołanie tworzy
         # coroutine i od razu ją porzuca (nigdy nie jest odpalona), więc klik
-        # nic nie robi. Stąd dwa małe opakowania zamiast jednej lambdy.
-        async def importuj_mediafarm(e: ft.Event) -> None:
-            await importuj_plik_danych("mediafarm.json", e)
+        # nic nie robi. Fabryka poniżej zwraca prawdziwą funkcję async per plik.
+        def _handler_importu(nazwa_docelowa: str):
+            async def _handler(e: ft.Event) -> None:
+                await importuj_plik_danych(nazwa_docelowa, e)
 
-        async def importuj_podmioty(e: ft.Event) -> None:
-            await importuj_plik_danych("podmioty.json", e)
+            return _handler
+
+        # Wszystkie pięć są normalnie generowane od nowa przy KAŻDYM starcie
+        # appki desktopowej z Numery_zlecen_2026.xlsx (patrz
+        # main.odswiez_baze_klientow) - na Androidzie ten plik nie jest
+        # lokalnie dostępny (OneDrive niezamontowany), więc to jedyny sposób,
+        # żeby te dane w ogóle tam trafiły.
+        PLIKI_DO_IMPORTU = [
+            ("mediafarm.json", "Importuj mediafarm.json"),
+            ("podmioty.json", "Importuj podmioty.json"),
+            ("klienci_agencyjni.json", "Importuj klienci_agencyjni.json"),
+            ("terminy_platnosci_klientow.json", "Importuj terminy płatności"),
+            ("cennik_wydawcow.json", "Importuj cennik wydawców"),
+        ]
 
         async def wybierz_folder(e: ft.Event) -> None:
             try:
@@ -387,10 +400,11 @@ class Kreator:
                 [
                     ft.Text("Dane klienta i spółek", weight=ft.FontWeight.BOLD, size=12),
                     ft.Text(
-                        "mediafarm.json i podmioty.json (nie trafiają do instalki - dane "
-                        "wrażliwe) - przyciskiem niżej (działa też na telefonie, gdzie nie "
-                        "da się ich po prostu wgrać przez menedżer plików) albo ręcznie, "
-                        "raz na maszynę, do:",
+                        "Te pliki nie trafiają do instalki (dane wrażliwe) i normalnie "
+                        "regenerują się same z Numery_zlecen_2026.xlsx przy starcie appki "
+                        "desktopowej - na telefonie ten plik nie jest dostępny, więc trzeba "
+                        "je zaimportować ręcznie (raz), przyciskami niżej. Alternatywnie, na "
+                        "Windows/macOS, można je skopiować ręcznie do:",
                         size=11,
                         color=ft.Colors.GREY_700,
                     ),
@@ -402,16 +416,11 @@ class Kreator:
                     ),
                     ft.Row(
                         [
-                            ft.OutlinedButton(
-                                "Importuj mediafarm.json",
-                                on_click=importuj_mediafarm,
-                            ),
-                            ft.OutlinedButton(
-                                "Importuj podmioty.json",
-                                on_click=importuj_podmioty,
-                            ),
+                            ft.OutlinedButton(etykieta, on_click=_handler_importu(nazwa))
+                            for nazwa, etykieta in PLIKI_DO_IMPORTU
                         ],
                         spacing=8,
+                        wrap=True,
                     ),
                     status_import,
                 ]
