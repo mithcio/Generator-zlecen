@@ -1,0 +1,7 @@
+# Tylko do testow (pytest) i budowania instalki na Windows (pyinstaller,
+# uzywany pod spodem przez `flet pack`) - NIE do requirements.txt, bo ten
+# plik `flet build macos`/`flet build apk` pakuje jako runtime appki na
+# urzadzeniu, a pyinstaller nie ma wheela na Androida (build sie wtedy
+# wywala: "Could not find a version that satisfies pyinstaller>=6.0.0").
+pytest>=8.0.0
+pyinstaller>=6.0.0
