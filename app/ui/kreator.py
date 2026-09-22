@@ -1,8 +1,10 @@
 """Orkiestrator kreatora: trzyma stan, przełącza kroki, wspólne akcje UI
 (błędy, nawigacja, ustawienia) wołane przez poszczególne kroki."""
+from datetime import datetime
 from pathlib import Path
 
 import flet as ft
+import openpyxl
 
 from app.services import aktualizacje
 from app.services import eksport_nazwy
@@ -337,6 +339,44 @@ class Kreator:
         async def importuj_podmioty(e: ft.Event) -> None:
             await importuj_plik_danych("podmioty.json", e)
 
+        # TYMCZASOWE - do usunięcia po teście. Sprawdza empirycznie (zamiast
+        # zgadywać), czy zapis openpyxl pod ścieżką zwróconą przez FilePicker
+        # na Androidzie faktycznie trafia z powrotem na OneDrive, czy tylko do
+        # lokalnej/odłączonej kopii - to jest dokładnie to, co
+        # numeracja.zarezerwuj_numer robi na Numery_zlecen_2026.xlsx.
+        status_test_zapisu = ft.Text("", size=11)
+
+        async def testuj_zapis_onedrive(e: ft.Event) -> None:
+            wynik = await self._file_picker.pick_files(
+                dialog_title="Wybierz plik xlsx (np. test.xlsx) do testu zapisu",
+                file_type=ft.FilePickerFileType.CUSTOM,
+                allowed_extensions=["xlsx"],
+            )
+            if not wynik:
+                return
+            sciezka = wynik[0].path
+            if not sciezka or not Path(sciezka).is_absolute():
+                status_test_zapisu.value = "Brak pełnej ścieżki do wybranego pliku."
+                status_test_zapisu.color = ft.Colors.RED_800
+                status_test_zapisu.update()
+                return
+            znacznik = f"TEST-ZAPIS {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            try:
+                wb = openpyxl.load_workbook(sciezka)
+                wb.active["A1"] = znacznik
+                wb.save(sciezka)
+            except Exception as err:  # diagnostyka - celowo szerokie, do usunięcia
+                status_test_zapisu.value = f"Błąd zapisu: {err}"
+                status_test_zapisu.color = ft.Colors.RED_800
+                status_test_zapisu.update()
+                return
+            status_test_zapisu.value = (
+                f"Zapisano do A1: {znacznik}. Sprawdź na innym urządzeniu/w przeglądarce, "
+                "czy ta zmiana dotarła na OneDrive."
+            )
+            status_test_zapisu.color = ft.Colors.GREEN_800
+            status_test_zapisu.update()
+
         async def wybierz_folder(e: ft.Event) -> None:
             try:
                 wynik = await self._file_picker.get_directory_path(
@@ -414,6 +454,23 @@ class Kreator:
                         spacing=8,
                     ),
                     status_import,
+                ]
+            )
+            sekcje.append(
+                [
+                    ft.Text(
+                        "Test zapisu do OneDrive (tymczasowe)", weight=ft.FontWeight.BOLD, size=12
+                    ),
+                    ft.Text(
+                        "Wybierz plik xlsx z tego samego folderu OneDrive co "
+                        "Numery_zlecen_2026.xlsx (oznaczony jako dostępny offline) - appka "
+                        "wpisze znacznik czasowy do komórki A1 i zapisze. Sprawdź na innym "
+                        "urządzeniu/w przeglądarce OneDrive, czy zmiana faktycznie dotarła.",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    ft.OutlinedButton("Testuj zapis", on_click=testuj_zapis_onedrive),
+                    status_test_zapisu,
                 ]
             )
 
