@@ -161,12 +161,18 @@ FORMAT_LICZBY = "#,##0"
 FORMAT_PROCENT = "0%"
 
 
-def _wstaw_formuly(ws: Worksheet, wiersze: dict[str, int], zlecenie: Zlecenie) -> None:
+def _wstaw_formuly(
+    ws: Worksheet, wiersze: dict[str, int], zlecenie: Zlecenie, nadpisane: set[str] | None = None
+) -> None:
     """4.5 (liczba), 4.6 (koszt jednostkowy), 7.1 (netto), 7.2 (VAT) i 7.3
     (brutto) muszą być prawdziwymi liczbami/formułami Excela — nie
     pre-sformatowanym tekstem — żeby account mógł w Excelu poprawić np.
     budżet netto i mieć automatyczne przeliczenie liczby i kwoty brutto,
-    zamiast ręcznie liczyć wszystko od nowa."""
+    zamiast ręcznie liczyć wszystko od nowa. Pole ręcznie nadpisane w kroku 4
+    (patrz krok4_podglad.py) pomija to automatyczne przeliczenie - zostaje
+    tekst, który już wpisał użytkownik (_wiersz_pozycja), bo w takim
+    przypadku to on świadomie decyduje o treści tej komórki."""
+    nadpisane = nadpisane or set()
     pola = zlecenie.pola
     r46, r45 = wiersze.get("4.6"), wiersze.get("4.5")
     r71, r72, r73 = wiersze.get("7.1"), wiersze.get("7.2"), wiersze.get("7.3")
@@ -180,25 +186,30 @@ def _wstaw_formuly(ws: Worksheet, wiersze: dict[str, int], zlecenie: Zlecenie) -
         c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
     r43 = wiersze.get("4.3")
-    if r43 is not None and pola.capping is not None:
+    if r43 is not None and pola.capping is not None and "4.3" not in nadpisane:
         # Capping jako prawdziwa liczba (nie tekst z ogólnego layoutu Pozycja),
         # żeby dało się w przyszłości użyć jej w formule Excela. "brak" (None)
         # zostaje tekstem - nie ma sensownej wartości liczbowej.
         _ustaw(r43, pola.capping, FORMAT_LICZBY)
 
-    _ustaw(r71, round(zlecenie.budzet_total, 2), FORMAT_KWOTY)
-    _ustaw(r72, 0.23, FORMAT_PROCENT)
-    if r73 and r71 and r72:
+    if "7.1" not in nadpisane:
+        _ustaw(r71, round(zlecenie.budzet_total, 2), FORMAT_KWOTY)
+    if "7.2" not in nadpisane:
+        _ustaw(r72, 0.23, FORMAT_PROCENT)
+    if "7.3" not in nadpisane and r73 and r71 and r72:
         _ustaw(r73, f"=C{r71}*(1+C{r72})", FORMAT_KWOTY)
 
     # FF (opłata stała) nie ma kosztu jednostkowego — cały budżet to jedna
     # opłata, więc 4.6 pokazuje wprost budżet, a 4.5 (liczba) zawsze = 1.
     if pola.model_sprzedazy == "FF":
-        _ustaw(r46, round(zlecenie.budzet_total, 2), FORMAT_KWOTY)
-        _ustaw(r45, 1, FORMAT_LICZBY)
+        if "4.6" not in nadpisane:
+            _ustaw(r46, round(zlecenie.budzet_total, 2), FORMAT_KWOTY)
+        if "4.5" not in nadpisane:
+            _ustaw(r45, 1, FORMAT_LICZBY)
     else:
-        _ustaw(r46, round(pola.koszt_jednostkowy, 2), FORMAT_KWOTY)
-        if r45 and r46 and r71:
+        if "4.6" not in nadpisane:
+            _ustaw(r46, round(pola.koszt_jednostkowy, 2), FORMAT_KWOTY)
+        if "4.5" not in nadpisane and r45 and r46 and r71:
             mnoznik = "*1000" if pola.model_sprzedazy == "CPM" else ""
             _ustaw(r45, f"=IF(C{r46}=0,0,C{r71}/C{r46}{mnoznik})", FORMAT_LICZBY)
 
@@ -218,8 +229,9 @@ def generuj_xlsx(
     spolka: SpolkaMediafarm,
     kontakt_accounta: dict,
     sciezka: Path,
+    nadpisania: dict[str, str] | None = None,
 ) -> Path:
-    layout = zbuduj_layout(zlecenie, podmiot, spolka, kontakt_accounta)
+    layout = zbuduj_layout(zlecenie, podmiot, spolka, kontakt_accounta, nadpisania)
 
     wb = Workbook()
     ws = wb.active
@@ -255,7 +267,7 @@ def generuj_xlsx(
             r = _wiersz_podpis(ws, r, element)
             r += 1
 
-    _wstaw_formuly(ws, wiersz_po_numerze, zlecenie)
+    _wstaw_formuly(ws, wiersz_po_numerze, zlecenie, set(nadpisania) if nadpisania else None)
     _pogrub_ramke_zewnetrzna(ws, pierwszy_wiersz_tabeli, r - 1)
 
     ws.page_setup.orientation = "portrait"

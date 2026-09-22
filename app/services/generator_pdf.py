@@ -106,9 +106,10 @@ def generuj_pdf(
     spolka: SpolkaMediafarm,
     kontakt_accounta: dict,
     sciezka: Path,
+    nadpisania: dict[str, str] | None = None,
 ) -> Path:
     _zarejestruj_fonty()
-    layout = zbuduj_layout(zlecenie, podmiot, spolka, kontakt_accounta)
+    layout = zbuduj_layout(zlecenie, podmiot, spolka, kontakt_accounta, nadpisania)
 
     styl_naglowek = ParagraphStyle(
         "Naglowek", fontName=_FONT_BOLD, fontSize=9, leading=10.5, textColor=colors.white,

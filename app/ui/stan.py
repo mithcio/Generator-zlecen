@@ -73,6 +73,18 @@ class StanKreatora:
     # z kampaniami — dostępne bez generowania zlecenia (xlsx/PDF).
     pokaz_wiersze_kampanii: bool = False
 
+    # Ręczne nadpisania pól dokumentu Zlecenia (krok 4) - klucz to numer
+    # pozycji (np. "4.4"), wartość to tekst wpisany ręcznie zamiast
+    # wyliczonego. Na potrzeby jednorazowych/niestandardowych przypadków
+    # (np. spersonalizowana nazwa produktu u klienta), których nie ma sensu
+    # wprowadzać do systemu na stałe. Dotyczy wyłącznie wyglądu tego
+    # konkretnego dokumentu - nie zmienia danych źródłowych kampanii.
+    zlecenie_nadpisania: dict[str, str] = field(default_factory=dict)
+
+    # Numer pozycji aktualnie edytowanej w kroku 4 (po kliknięciu ikonki
+    # ołówka) - None gdy żadne pole nie jest w edycji.
+    pole_w_edycji: str | None = None
+
     # Krok 5 (Dane Traffic) — adnotacje dla działu traffic, osobne od
     # Zlecenie.pola.uwagi (to jest uwaga na dokumencie dla klienta, nie do
     # traffic). "Wydawcy zewnętrzni" na razie pojedynczy wybór (jeśli inny niż

@@ -62,6 +62,7 @@ def zbuduj_layout(
     podmiot: DanePodmiotu,
     spolka: SpolkaMediafarm,
     kontakt_accounta: dict,
+    nadpisania: dict[str, str] | None = None,
 ) -> list[Wiersz]:
     pola = zlecenie.pola
 
@@ -71,7 +72,7 @@ def zbuduj_layout(
         f"{formatuj_telefon(kontakt_accounta.get('telefon'))}"
     )
 
-    return [
+    wiersze: list[Wiersz] = [
         NaglowekZIdentyfikatorem("1. Dane Mediafarm", "Identyfikator Zlecenia:", pola.nr_zlecenia),
         Pozycja("1.1", "Adres siedziby do korespondencji", f"{spolka.nazwa}, {spolka.adres}"),
         Pozycja("1.2", "Bank, numer konta bankowego", spolka.konto_bankowe),
@@ -129,3 +130,12 @@ def zbuduj_layout(
         Tekst(f"Data: {date.today().strftime('%d.%m.%Y')} r."),
         LiniaPodpisu("Podpis i pieczęć Mediafarm", "Podpis i pieczęć Zlecającego"),
     ]
+
+    if nadpisania:
+        wiersze = [
+            Pozycja(w.numer, w.etykieta, nadpisania[w.numer])
+            if isinstance(w, Pozycja) and w.numer in nadpisania
+            else w
+            for w in wiersze
+        ]
+    return wiersze

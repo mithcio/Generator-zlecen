@@ -114,8 +114,8 @@ def buduj(kreator) -> ft.Control:
             )
         )
 
-    layout = zbuduj_layout(zlecenie, podmiot, spolka, kontakt)
-    tresc.append(_render_layout(layout))
+    layout = zbuduj_layout(zlecenie, podmiot, spolka, kontakt, stan.zlecenie_nadpisania)
+    tresc.append(_render_layout(layout, stan, kreator))
 
     def dalej(e: ft.Event) -> None:
         stan.krok = 5
@@ -132,8 +132,14 @@ def buduj(kreator) -> ft.Control:
         folder = folder_zlecenia(stan.nr_zlecenia)
         nazwa_pliku = nazwa_pliku_zlecenie(stan.nr_zlecenia, stan.nazwa_kampanii)
         try:
-            sciezka_xlsx = generuj_xlsx(zlecenie, podmiot, spolka, kontakt, folder / f"{nazwa_pliku}.xlsx")
-            sciezka_pdf = generuj_pdf(zlecenie, podmiot, spolka, kontakt, folder / f"{nazwa_pliku}.pdf")
+            sciezka_xlsx = generuj_xlsx(
+                zlecenie, podmiot, spolka, kontakt, folder / f"{nazwa_pliku}.xlsx",
+                nadpisania=stan.zlecenie_nadpisania,
+            )
+            sciezka_pdf = generuj_pdf(
+                zlecenie, podmiot, spolka, kontakt, folder / f"{nazwa_pliku}.pdf",
+                nadpisania=stan.zlecenie_nadpisania,
+            )
         except OSError as err:
             kreator.pokaz_blad([f"Nie udało się zapisać plików: {err}"])
             return
@@ -227,7 +233,87 @@ def widok_wierszy_do_wklejenia(zlecenie: Zlecenie) -> ft.Control:
     )
 
 
-def _render_layout(layout) -> ft.Control:
+# Pozycje wyliczane automatycznie z danych zlecenia i wstawiane w
+# generator_xlsx.py jako prawdziwe formuły Excela (patrz _wstaw_formuly) -
+# ręczna edycja samego tekstu w podglądzie i tak zostałaby nadpisana
+# przeliczoną wartością w wygenerowanym xlsx, więc pencil dla nich jest
+# celowo wyłączony, żeby nie sugerować edytowalności, która nie zadziała.
+POLA_TYLKO_OBLICZANE = {"4.3", "4.5", "4.6", "7.1", "7.2", "7.3"}
+
+
+def _rozpocznij_edycje(numer: str, stan, kreator) -> None:
+    stan.pole_w_edycji = numer
+    kreator.odswiez()
+
+
+def _anuluj_edycje(stan, kreator) -> None:
+    stan.pole_w_edycji = None
+    kreator.odswiez()
+
+
+def _zapisz_nadpisanie(pole: ft.TextField, numer: str, stan, kreator) -> None:
+    stan.zlecenie_nadpisania[numer] = (pole.value or "").strip()
+    stan.pole_w_edycji = None
+    kreator.odswiez()
+
+
+def _przywroc_domyslne(numer: str, stan, kreator) -> None:
+    stan.zlecenie_nadpisania.pop(numer, None)
+    stan.pole_w_edycji = None
+    kreator.odswiez()
+
+
+def _wiersz_pozycja(pozycja: Pozycja, stan, kreator) -> ft.Control:
+    etykieta = ft.Text(f"{pozycja.numer} {pozycja.etykieta}".strip(), width=280, weight=ft.FontWeight.W_500)
+
+    if pozycja.numer in POLA_TYLKO_OBLICZANE:
+        return ft.Row([etykieta, ft.Text(pozycja.wartosc, expand=True)])
+
+    if stan.pole_w_edycji == pozycja.numer:
+        pole = ft.TextField(value=pozycja.wartosc, expand=True, dense=True, autofocus=True)
+        pole.on_submit = lambda e: _zapisz_nadpisanie(pole, pozycja.numer, stan, kreator)
+        return ft.Row(
+            [
+                etykieta,
+                pole,
+                ft.IconButton(
+                    icon=ft.Icons.CHECK, icon_size=16, tooltip="Zapisz",
+                    on_click=lambda e: _zapisz_nadpisanie(pole, pozycja.numer, stan, kreator),
+                ),
+                ft.IconButton(
+                    icon=ft.Icons.CLOSE, icon_size=16, tooltip="Anuluj",
+                    on_click=lambda e: _anuluj_edycje(stan, kreator),
+                ),
+            ]
+        )
+
+    nadpisane = pozycja.numer in stan.zlecenie_nadpisania
+    ikony = [
+        ft.IconButton(
+            icon=ft.Icons.EDIT_OUTLINED, icon_size=16,
+            tooltip="Zmień na potrzeby tego dokumentu",
+            on_click=lambda e, numer=pozycja.numer: _rozpocznij_edycje(numer, stan, kreator),
+        )
+    ]
+    if nadpisane:
+        ikony.insert(
+            0,
+            ft.IconButton(
+                icon=ft.Icons.UNDO, icon_size=16,
+                tooltip="Przywróć wartość domyślną",
+                on_click=lambda e, numer=pozycja.numer: _przywroc_domyslne(numer, stan, kreator),
+            ),
+        )
+    return ft.Row(
+        [
+            etykieta,
+            ft.Text(pozycja.wartosc, expand=True, color=ft.Colors.BLUE_900 if nadpisane else None),
+            *ikony,
+        ]
+    )
+
+
+def _render_layout(layout, stan, kreator) -> ft.Control:
     elementy = []
     for pozycja in layout:
         if isinstance(pozycja, NaglowekZIdentyfikatorem):
@@ -246,14 +332,7 @@ def _render_layout(layout) -> ft.Control:
             elementy.append(ft.Divider())
             elementy.append(ft.Text(pozycja.tekst, weight=ft.FontWeight.BOLD, size=14, color=ft.Colors.BLUE_900))
         elif isinstance(pozycja, Pozycja):
-            elementy.append(
-                ft.Row(
-                    [
-                        ft.Text(f"{pozycja.numer} {pozycja.etykieta}".strip(), width=280, weight=ft.FontWeight.W_500),
-                        ft.Text(pozycja.wartosc, expand=True),
-                    ]
-                )
-            )
+            elementy.append(_wiersz_pozycja(pozycja, stan, kreator))
         elif isinstance(pozycja, LiniaPodpisu):
             elementy.append(
                 ft.Row(

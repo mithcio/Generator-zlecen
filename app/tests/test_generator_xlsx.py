@@ -186,3 +186,37 @@ def test_capping_brak_zostaje_tekstem(tmp_path):
     sciezka = generuj_xlsx(zlecenie, podmiot, spolka, kontakt, tmp_path / "Zlecenie_test.xlsx")
     komorki = _wczytaj_komorki_po_numerze(sciezka)
     assert komorki["4.3"].value == "brak"
+
+
+def test_nadpisanie_pola_tekstowego_trafia_do_xlsx(tmp_path):
+    """Ręczna edycja pola w kroku 4 (np. niestandardowa nazwa produktu u
+    klienta) ma trafić do wygenerowanego dokumentu zamiast wyliczonej wartości."""
+    zlecenie = _przykladowe_zlecenie()
+    podmiot = lp.znajdz_podmiot(zlecenie.pola.account_manager, zlecenie.pola.dom_mediowy)
+    spolka = lp.spolka_mediafarm(zlecenie.pola.podmiot_realizujacy)
+    kontakt = lp.kontakt_accounta(zlecenie.pola.account_manager)
+
+    sciezka = generuj_xlsx(
+        zlecenie, podmiot, spolka, kontakt, tmp_path / "Zlecenie_test.xlsx",
+        nadpisania={"4.4": "Spersonalizowany format XYZ dla klienta"},
+    )
+    komorki = _wczytaj_komorki_po_numerze(sciezka)
+    assert komorki["4.4"].value == "Spersonalizowany format XYZ dla klienta"
+
+
+def test_nadpisanie_pola_liczbowego_wylacza_automatyczna_formule(tmp_path):
+    """Pola wyliczane formułą (7.1-7.3, 4.5, 4.6, 4.3) normalnie są nadpisywane
+    przez _wstaw_formuly niezależnie od tekstu layoutu - jeśli użytkownik
+    świadomie nadpisał taką pozycję, automatyczne przeliczenie ma jej nie
+    dotykać, żeby jego wpis się utrzymał."""
+    zlecenie = _przykladowe_zlecenie(model_sprzedazy="CPM", koszt_jednostkowy=26)
+    podmiot = lp.znajdz_podmiot(zlecenie.pola.account_manager, zlecenie.pola.dom_mediowy)
+    spolka = lp.spolka_mediafarm(zlecenie.pola.podmiot_realizujacy)
+    kontakt = lp.kontakt_accounta(zlecenie.pola.account_manager)
+
+    sciezka = generuj_xlsx(
+        zlecenie, podmiot, spolka, kontakt, tmp_path / "Zlecenie_test.xlsx",
+        nadpisania={"7.1": "Wg odrębnych ustaleń"},
+    )
+    komorki = _wczytaj_komorki_po_numerze(sciezka)
+    assert komorki["7.1"].value == "Wg odrębnych ustaleń"
