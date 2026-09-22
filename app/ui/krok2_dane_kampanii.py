@@ -59,13 +59,48 @@ def buduj(kreator) -> ft.Control:
             stan.nr_zlecenia_automatyczny = stan.nr_zlecenia
             stan.numer_automatyczny_aktywny = True
         except numeracja.BladNumeracji as err:
+            # Brak dostępu do pliku z numerami (typowo na telefonie - OneDrive
+            # nie jest tam lokalnie zamontowany, patrz Ustawienia -> ukryte na
+            # mobile pole "Plik z numerami zleceń") nie może być ślepym
+            # zaułkiem bez wyjścia poza "wróć" - użytkownik świadomie
+            # rezerwuje numer poza appką (np. pyta kogoś na Windows/macOS) i
+            # wpisuje go tu ręcznie, żeby kontynuować.
+            pole_numer_reczny = ft.TextField(
+                label="Numer zlecenia (wpisany ręcznie)",
+                hint_text=f"np. {prefiks_oczekiwany}/2026/001",
+                value=stan.nr_zlecenia or "",
+                expand=True,
+            )
+            blad_reczny = ft.Text("", color=ft.Colors.RED_800, size=11)
+
+            def zatwierdz_numer_reczny(e: ft.Event) -> None:
+                wartosc = (pole_numer_reczny.value or "").strip()
+                if not wartosc.startswith(f"{prefiks_oczekiwany}/"):
+                    blad_reczny.value = (
+                        f"Numer musi zaczynać się od „{prefiks_oczekiwany}/” dla wybranego podmiotu."
+                    )
+                    blad_reczny.update()
+                    return
+                stan.nr_zlecenia = wartosc
+                stan.nr_zlecenia_automatyczny = None
+                stan.numer_automatyczny_aktywny = False
+                kreator.odswiez()
+
             return ft.Column(
                 [
                     naglowek_kroku(2, LICZBA_KROKOW, "Dane kampanii"),
                     ft.Text(str(err), color=ft.Colors.RED_800),
+                    ft.Text(
+                        "Możesz też wpisać numer ręcznie i kontynuować (np. dostałeś/aś go od kogoś "
+                        "z dostępem do pliku) - upewnij się, że jest faktycznie wolny.",
+                        size=12,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    ft.Row([pole_numer_reczny, ft.FilledButton("Użyj tego numeru", on_click=zatwierdz_numer_reczny)]),
+                    blad_reczny,
                     ft.Row(
                         [
-                            ft.FilledButton("Ustawienia", on_click=lambda e: kreator.pokaz_ustawienia()),
+                            ft.OutlinedButton("Ustawienia", on_click=lambda e: kreator.pokaz_ustawienia()),
                             ft.TextButton("Wstecz", on_click=lambda e: kreator.wroc()),
                         ]
                     ),

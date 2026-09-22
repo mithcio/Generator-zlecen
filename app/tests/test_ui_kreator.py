@@ -830,6 +830,30 @@ def test_krok2_formularz_numer_zachowaj_wpisany_zwalnia_automatyczny_w_pliku():
         raise AssertionError(f"nie znaleziono wiersza numeru {numer_auto}")
 
 
+def test_krok2_brak_pliku_numerow_pozwala_wpisac_numer_recznie():
+    """Na telefonie (albo gdy plik z numerami jest chwilowo niedostępny) brak
+    skonfigurowanej ścieżki nie może być ślepym zaułkiem - musi dać się
+    wpisać numer ręcznie i przejść dalej."""
+    ustawienia.zapisz(sciezka_numery_zlecen=str(ustawienia.wczytaj()["sciezka_numery_zlecen"]) + "_brak.xlsx")
+
+    stan = StanKreatora(account_manager="Igor Samul", podmiot_realizujacy="Sp. k.")
+    kreator = FakeKreator(stan)
+    kontrolka = krok2_dane_kampanii.buduj(kreator)
+
+    pole = _znajdz_pole_tekstowe_po_etykiecie(kontrolka, "Numer zlecenia (wpisany ręcznie)")
+    przycisk = _znajdz_przez_tekst(kontrolka, ft.FilledButton, "Użyj tego numeru")
+    assert pole is not None
+    assert przycisk is not None
+
+    pole.value = "K/2026/500"
+    przycisk.on_click(None)
+
+    assert stan.nr_zlecenia == "K/2026/500"
+    assert stan.nr_zlecenia_automatyczny is None
+    assert stan.numer_automatyczny_aktywny is False
+    assert kreator.liczba_odswiezen == 1
+
+
 def test_krok2_wklej_bez_konfliktu_przechodzi_do_formularza_do_uzupelnienia_brandu():
     """Po udanym wklejeniu wierszy apka pokazuje formularz (z już
     wypełnionymi polami) zamiast od razu skakać do okresów — Brand i Capping
