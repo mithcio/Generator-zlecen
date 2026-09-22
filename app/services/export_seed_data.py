@@ -49,14 +49,20 @@ NUMERY_XLSX = ZRODLA / "Numery_zlecen_2026.xlsx"
 AKANCI_ARKUSZE = ["Agnieszka Kraińska", "Marta Urbańska", "Igor Samul"]
 
 
-def export_podmioty(numery_xlsx=None):
+def export_podmioty(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
     """Podmioty: per account manager -> per Agencja/Klient bezpośredni -> dane
     fakturowe, z tabeli "Podmioty" w Numery_zlecen_2026.xlsx (kolumna "Podmiot"
     = Sp. k. dla agencji, Sp. z o.o. dla klientów bezpośrednich).
 
     numery_xlsx: ścieżka ustawiona w panelu Ustawienia (app.services.ustawienia)
     - jeśli nieustawiona, spada na kopię w źródła/ (wygoda przy pierwszym
-    uruchomieniu, zanim ktoś skonfiguruje właściwą ścieżkę)."""
+    uruchomieniu, zanim ktoś skonfiguruje właściwą ścieżkę).
+
+    katalog_wyjsciowy: domyślnie DATA_OUT (app/data) - appka desktopowa
+    regeneruje tu dane przy każdym starcie (main.odswiez_baze_klientow). Na
+    Androidzie/iOS appka woła to z katalog_danych_uzytkownika() zamiast (przez
+    przycisk "Zaktualizuj z pliku" w Ustawieniach - patrz kreator.py), bo
+    OneDrive z tym plikiem nie jest tam automatycznie dostępny przy starcie."""
     wb = openpyxl.load_workbook(numery_xlsx or NUMERY_XLSX, data_only=True)
 
     wynik = {}
@@ -77,16 +83,18 @@ def export_podmioty(numery_xlsx=None):
             r += 1
         wynik[akant] = entity_map
 
-    with open(DATA_OUT / "podmioty.json", "w", encoding="utf-8") as f:
+    with open((katalog_wyjsciowy or DATA_OUT) / "podmioty.json", "w", encoding="utf-8") as f:
         json.dump(wynik, f, ensure_ascii=False, indent=2)
     print(f"podmioty.json: {sum(len(v) for v in wynik.values())} podmiotów w {len(wynik)} blokach account")
 
 
-def export_klienci_agencyjni(numery_xlsx=None):
+def export_klienci_agencyjni(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
     """Mapowanie klient (marka) -> agencja per account manager, z tabeli
     "Klienci pod agencjami" w Numery_zlecen_2026.xlsx. Klienci bez jeszcze
     przypisanej agencji (kolumna "Agencja" pusta) są pomijani - mapowanie jest
-    budowane ręcznie i stopniowo, nie musi być kompletne od razu."""
+    budowane ręcznie i stopniowo, nie musi być kompletne od razu.
+
+    katalog_wyjsciowy: patrz export_podmioty - domyślnie DATA_OUT."""
     wb = openpyxl.load_workbook(numery_xlsx or NUMERY_XLSX, data_only=True)
 
     wynik = {}
@@ -104,18 +112,20 @@ def export_klienci_agencyjni(numery_xlsx=None):
             r += 1
         wynik[akant] = mapa
 
-    with open(DATA_OUT / "klienci_agencyjni.json", "w", encoding="utf-8") as f:
+    with open((katalog_wyjsciowy or DATA_OUT) / "klienci_agencyjni.json", "w", encoding="utf-8") as f:
         json.dump(wynik, f, ensure_ascii=False, indent=2)
     print(f"klienci_agencyjni.json: {sum(len(v) for v in wynik.values())} przypisań w {len(wynik)} blokach account")
 
 
-def export_terminy_platnosci_klientow(numery_xlsx=None):
+def export_terminy_platnosci_klientow(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
     """Termin płatności przypisany wprost do klienta (kolumna I tabeli
     "Klienci pod agencjami" w Numery_zlecen_2026.xlsx) - nadrzędny względem
     terminu przypisanego do domu mediowego/agencji (kolumna E tabeli
     "Podmioty", patrz export_podmioty). Rzadki wyjątek (na razie tylko jeden
     klient u Marty Urbańskiej) - większość klientów nie ma tu nic wpisanego,
-    więc mapowanie jest z założenia niepełne/rzadkie."""
+    więc mapowanie jest z założenia niepełne/rzadkie.
+
+    katalog_wyjsciowy: patrz export_podmioty - domyślnie DATA_OUT."""
     wb = openpyxl.load_workbook(numery_xlsx or NUMERY_XLSX, data_only=True)
 
     wynik = {}
@@ -133,7 +143,7 @@ def export_terminy_platnosci_klientow(numery_xlsx=None):
             r += 1
         wynik[akant] = mapa
 
-    with open(DATA_OUT / "terminy_platnosci_klientow.json", "w", encoding="utf-8") as f:
+    with open((katalog_wyjsciowy or DATA_OUT) / "terminy_platnosci_klientow.json", "w", encoding="utf-8") as f:
         json.dump(wynik, f, ensure_ascii=False, indent=2)
     print(
         f"terminy_platnosci_klientow.json: {sum(len(v) for v in wynik.values())} nadpisań "
@@ -282,7 +292,7 @@ def _waluta_z_formatu(number_format: str) -> str:
     return "USD"
 
 
-def export_cennik_wydawcow(numery_xlsx=None):
+def export_cennik_wydawcow(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
     """Cennik placementów wydawców zewnętrznych (KIDOZ/PRADO/Adverty/Odeeo/
     Crazygames/POKI/...), z zakładki "Traffic cennik" w Numery_zlecen_2026.xlsx
     (nie per-akant - cennik jest wspólny). Kolumny: A=Wydawca, B=Format,
@@ -293,7 +303,9 @@ def export_cennik_wydawcow(numery_xlsx=None):
 
     Brak zakładki (jeszcze nie dodana / stary plik) daje pusty cennik, nie
     błąd - żeby nie blokować startu aplikacji, zanim dział traffic ją
-    uzupełni."""
+    uzupełni.
+
+    katalog_wyjsciowy: patrz export_podmioty - domyślnie DATA_OUT."""
     wb = openpyxl.load_workbook(numery_xlsx or NUMERY_XLSX, data_only=True)
 
     wynik = {}
@@ -315,7 +327,7 @@ def export_cennik_wydawcow(numery_xlsx=None):
                     }
             r += 1
 
-    with open(DATA_OUT / "cennik_wydawcow.json", "w", encoding="utf-8") as f:
+    with open((katalog_wyjsciowy or DATA_OUT) / "cennik_wydawcow.json", "w", encoding="utf-8") as f:
         json.dump(wynik, f, ensure_ascii=False, indent=2)
     print(f"cennik_wydawcow.json: {sum(len(v) for v in wynik.values())} aktywnych stawek u {len(wynik)} wydawców")
 

@@ -61,3 +61,18 @@ def test_waluta_z_formatu_zloty():
 
 def test_waluta_z_formatu_domyslnie_usd():
     assert _waluta_z_formatu("General") == "USD"
+
+
+def test_export_cennik_wydawcow_respektuje_jawny_katalog_wyjsciowy(tmp_path, monkeypatch):
+    """katalog_wyjsciowy (uzywany przez przycisk "Zaktualizuj z pliku" w
+    Ustawieniach na Androidzie/iOS - patrz kreator.py) ma pierwszenstwo przed
+    DATA_OUT, niezaleznie od tego, gdzie akurat wskazuje DATA_OUT."""
+    plik = _zbuduj_plik_cennika(tmp_path)
+    inny_katalog = tmp_path / "inny"
+    inny_katalog.mkdir()
+    monkeypatch.setattr("app.services.export_seed_data.DATA_OUT", tmp_path / "nieuzywany")
+
+    export_cennik_wydawcow(plik, katalog_wyjsciowy=inny_katalog)
+
+    assert (inny_katalog / "cennik_wydawcow.json").exists()
+    assert not (tmp_path / "nieuzywany" / "cennik_wydawcow.json").exists()

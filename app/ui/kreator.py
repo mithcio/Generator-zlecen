@@ -9,6 +9,12 @@ from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
 from app.services import numeracja
 from app.services import ustawienia
+from app.services.export_seed_data import (
+    export_cennik_wydawcow,
+    export_klienci_agencyjni,
+    export_podmioty,
+    export_terminy_platnosci_klientow,
+)
 from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
 from app.ui import (
     krok1_podmiot,
@@ -337,18 +343,55 @@ class Kreator:
 
             return _handler
 
-        # Wszystkie pięć są normalnie generowane od nowa przy KAŻDYM starcie
-        # appki desktopowej z Numery_zlecen_2026.xlsx (patrz
-        # main.odswiez_baze_klientow) - na Androidzie ten plik nie jest
-        # lokalnie dostępny (OneDrive niezamontowany), więc to jedyny sposób,
-        # żeby te dane w ogóle tam trafiły.
-        PLIKI_DO_IMPORTU = [
-            ("mediafarm.json", "Importuj mediafarm.json"),
-            ("podmioty.json", "Importuj podmioty.json"),
-            ("klienci_agencyjni.json", "Importuj klienci_agencyjni.json"),
-            ("terminy_platnosci_klientow.json", "Importuj terminy płatności"),
-            ("cennik_wydawcow.json", "Importuj cennik wydawców"),
-        ]
+        # mediafarm.json (dane spółek Mediafarm/kontakty accountów) zmienia
+        # się rzadko i pochodzi z zupełnie innego pliku źródłowego niż
+        # poniższe cztery - zostaje jako osobny, ręczny import gotowego JSON.
+        PLIKI_DO_IMPORTU = [("mediafarm.json", "Importuj mediafarm.json")]
+
+        status_aktualizacji = ft.Text("", size=11)
+
+        async def aktualizuj_z_pliku_numerow(e: ft.Event) -> None:
+            """podmioty.json/klienci_agencyjni.json/terminy_platnosci_klientow.json/
+            cennik_wydawcow.json pochodzą wszystkie z Numery_zlecen_2026.xlsx i na
+            desktopie regenerują się same przy każdym starcie appki
+            (main.odswiez_baze_klientow) - na Androidzie/iOS ten plik nie jest
+            automatycznie dostępny (OneDrive niezamontowany), ale JEST czytelny
+            przez systemowy wybór pliku (w odróżnieniu od zapisu, który tam nie
+            wraca do OneDrive - patrz numeracja/manualny numer zlecenia w kroku 2).
+            Ten przycisk pozwala odświeżyć wszystkie cztery pliki naraz, kiedy
+            tylko coś się zmieni w źródle, bez pośrednictwa kogoś na Windows/macOS."""
+            wynik = await self._file_picker.pick_files(
+                dialog_title="Wybierz plik Numery_zlecen_2026.xlsx",
+                file_type=ft.FilePickerFileType.CUSTOM,
+                allowed_extensions=["xlsx"],
+            )
+            if not wynik:
+                return
+            sciezka_zrodlowa = wynik[0].path
+            if not sciezka_zrodlowa or not Path(sciezka_zrodlowa).is_absolute():
+                status_aktualizacji.value = (
+                    "Przeglądarka nie udostępnia pełnej ścieżki do wybranego pliku "
+                    "- aktualizacja działa tylko w wersji desktopowej/mobilnej aplikacji."
+                )
+                status_aktualizacji.color = ft.Colors.RED_800
+                status_aktualizacji.update()
+                return
+            try:
+                docelowy_katalog = katalog_danych_uzytkownika()
+                docelowy_katalog.mkdir(parents=True, exist_ok=True)
+                export_podmioty(sciezka_zrodlowa, docelowy_katalog)
+                export_klienci_agencyjni(sciezka_zrodlowa, docelowy_katalog)
+                export_terminy_platnosci_klientow(sciezka_zrodlowa, docelowy_katalog)
+                export_cennik_wydawcow(sciezka_zrodlowa, docelowy_katalog)
+            except Exception as err:  # xlsx uszkodzony/zła struktura zakładek itp.
+                status_aktualizacji.value = f"Nie udało się zaktualizować danych: {err}"
+                status_aktualizacji.color = ft.Colors.RED_800
+                status_aktualizacji.update()
+                return
+            self.page.pop_dialog()
+            self.pokaz_ustawienia(
+                komunikat="Zaktualizowano podmioty, klientów pod agencjami, terminy płatności i cennik wydawców."
+            )
 
         async def wybierz_folder(e: ft.Event) -> None:
             try:
@@ -400,11 +443,9 @@ class Kreator:
                 [
                     ft.Text("Dane klienta i spółek", weight=ft.FontWeight.BOLD, size=12),
                     ft.Text(
-                        "Te pliki nie trafiają do instalki (dane wrażliwe) i normalnie "
-                        "regenerują się same z Numery_zlecen_2026.xlsx przy starcie appki "
-                        "desktopowej - na telefonie ten plik nie jest dostępny, więc trzeba "
-                        "je zaimportować ręcznie (raz), przyciskami niżej. Alternatywnie, na "
-                        "Windows/macOS, można je skopiować ręcznie do:",
+                        "Te pliki nie trafiają do instalki (dane wrażliwe). mediafarm.json "
+                        "zmienia się rzadko - zaimportuj gotowy plik raz, przyciskiem niżej. "
+                        "Alternatywnie, na Windows/macOS, można go skopiować ręcznie do:",
                         size=11,
                         color=ft.Colors.GREY_700,
                     ),
@@ -423,6 +464,22 @@ class Kreator:
                         wrap=True,
                     ),
                     status_import,
+                    ft.Divider(),
+                    ft.Text(
+                        "Podmioty, klienci pod agencjami, terminy płatności i cennik "
+                        "wydawców pochodzą wszystkie z Numery_zlecen_2026.xlsx i na "
+                        "Windows/macOS regenerują się same przy każdym starcie. Na "
+                        "telefonie wskaż ten sam plik (odczyt działa, nawet gdy nie da się "
+                        "do niego zapisać z powrotem) - jeden przycisk zaktualizuje od razu "
+                        "wszystkie cztery, ilekroć coś się w nim zmieni.",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    ft.OutlinedButton(
+                        "Zaktualizuj z Numery_zlecen_2026.xlsx",
+                        on_click=aktualizuj_z_pliku_numerow,
+                    ),
+                    status_aktualizacji,
                 ]
             )
 
