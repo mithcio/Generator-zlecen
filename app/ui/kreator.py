@@ -324,6 +324,19 @@ class Kreator:
             self.page.pop_dialog()
             self.pokaz_ustawienia(komunikat=f"Zaimportowano {nazwa_docelowa}.")
 
+        # on_click musi dostać funkcję async BEZPOŚREDNIO (tak jak
+        # wybierz_plik_numery/wybierz_folder niżej) - Flet rozpoznaje i
+        # awaituje handler tylko wtedy, gdy sam jest coroutine function.
+        # `on_click=lambda e: importuj_plik_danych("x", e)` wygląda poprawnie,
+        # ale lambda jest zwykłą funkcją synchroniczną - jej wywołanie tworzy
+        # coroutine i od razu ją porzuca (nigdy nie jest odpalona), więc klik
+        # nic nie robi. Stąd dwa małe opakowania zamiast jednej lambdy.
+        async def importuj_mediafarm(e: ft.Event) -> None:
+            await importuj_plik_danych("mediafarm.json", e)
+
+        async def importuj_podmioty(e: ft.Event) -> None:
+            await importuj_plik_danych("podmioty.json", e)
+
         async def wybierz_folder(e: ft.Event) -> None:
             try:
                 wynik = await self._file_picker.get_directory_path(
@@ -391,11 +404,11 @@ class Kreator:
                         [
                             ft.OutlinedButton(
                                 "Importuj mediafarm.json",
-                                on_click=lambda e: importuj_plik_danych("mediafarm.json", e),
+                                on_click=importuj_mediafarm,
                             ),
                             ft.OutlinedButton(
                                 "Importuj podmioty.json",
-                                on_click=lambda e: importuj_plik_danych("podmioty.json", e),
+                                on_click=importuj_podmioty,
                             ),
                         ],
                         spacing=8,
