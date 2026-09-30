@@ -40,10 +40,22 @@ build/
 dist/
 *.spec
 
-# Lokalna konfiguracja Claude Code - nie jest kodem appki
-.claude/
+# Lokalna konfiguracja Claude Code - nie jest kodem appki (poza hookami synchronizacji)
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 app/.claude/
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Prywatne repo z wrażliwymi danymi (patrz .claude/hooks/git-sync.sh)
+/.git-dane/
+
+# Sekrety
+.env
+.env.*
+!.env.example
+*.pem
+*.key

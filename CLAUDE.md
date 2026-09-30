@@ -63,3 +63,10 @@ na start.
 - Analiza pliku z kampaniami, gdy dostarczony
 - MVP: jeden najczęstszy scenariusz (jeden format, bez wydawcy
   zewnętrznego) jako pierwszy krok
+
+## Synchronizacja z GitHubem (automatyczna, tylko u właściciela - mithcio)
+
+- **Przy otwarciu projektu** hook `SessionStart` (`.claude/hooks/git-sync.sh start`) robi `git pull` tego repo oraz repo z danymi. Jeśli hook zgłosi błąd albo nie zadziałał, zrób `git pull` sam, zanim zaczniesz pracę.
+- **Przy zamknięciu sesji** hook `SessionEnd` robi commit wszystkich zmian i `git push`. Gdy użytkownik mówi, że kończy pracę, zrób od razu commit z opisowym komunikatem i push, nie czekając na hook.
+- To repo (`Generator-zlecen`) jest **publiczne** i korzystają z niego inni pracownicy. Nigdy nie commituj tu danych klientów, sekretów ani plików z `.gitignore`.
+- Wrażliwe dane (`źródła/`, `Cenniki_traffic/`, `app/data/*.json` z danymi klientów) są w osobnym **prywatnym** repo `mithcio/claude-generator-zlecen-claude`, które ma git-dir `.git-dane/` i jako work-tree ten sam katalog projektu. Obsługuj je poleceniem `git --git-dir=.git-dane --work-tree=. ...` (pliki dodawaj przez `add -f`, bo są w `.gitignore`). W świeżym klonie (np. w chmurze albo na telefonie) hook sam pobiera to repo. Jeśli brakuje do niego dostępu, poinformuj użytkownika, że trzeba dodać to repo do środowiska Claude.
