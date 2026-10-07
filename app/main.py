@@ -80,10 +80,20 @@ def odswiez_baze_klientow() -> None:
     kopią w źródła/."""
     try:
         sciezka = ustawienia.wczytaj().get("sciezka_numery_zlecen")
-        export_podmioty(sciezka)
-        export_klienci_agencyjni(sciezka)
-        export_terminy_platnosci_klientow(sciezka)
-        export_cennik_wydawcow(sciezka)
+        # W spakowanej appce czytniki (lookup_podmiotu, cennik) patrzą NAJPIERW
+        # do folderu danych użytkownika, a app/data/ leży wewnątrz instalki
+        # (tymczasowy albo tylko do odczytu) - zapis tam nie dociera do
+        # czytników, a stary podmioty.json z folderu użytkownika wygrywa w
+        # nieskończoność. Dlatego tu piszemy w to samo miejsce, z którego
+        # appka czyta. W wersji z kodu zostaje app/data/ (None).
+        katalog = None
+        if czy_spakowana_appka():
+            katalog = katalog_danych_uzytkownika()
+            katalog.mkdir(parents=True, exist_ok=True)
+        export_podmioty(sciezka, katalog)
+        export_klienci_agencyjni(sciezka, katalog)
+        export_terminy_platnosci_klientow(sciezka, katalog)
+        export_cennik_wydawcow(sciezka, katalog)
     except Exception as err:
         print(f"Nie udało się odświeżyć bazy klientów z Numery_zlecen_2026.xlsx: {err}")
 
