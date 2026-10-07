@@ -108,9 +108,17 @@ def klienci_dla_agencji(account_manager: str, agencja: str) -> list[str]:
     """Lista klientów (marek) obsługiwanych przez daną agencję pod danym
     accountem, z app/data/klienci_agencyjni.json. Puste jeśli agencja jeszcze
     nie ma przypisanych klientów w tym pliku (mapowanie budowane ręcznie,
-    stopniowo) — nie jest to błąd."""
+    stopniowo) — nie jest to błąd.
+
+    Klient może być przypisany do kilku agencji (wartość to lista); starszy
+    format pliku (jedna agencja jako zwykły tekst) nadal jest czytany, np. z
+    JSON-a zaimportowanego na telefon przed zmianą."""
     mapa = _wczytaj("klienci_agencyjni.json").get(account_manager, {})
-    return sorted(klient for klient, ag in mapa.items() if ag == agencja)
+    return sorted(
+        klient
+        for klient, ag in mapa.items()
+        if agencja in (ag if isinstance(ag, list) else [ag])
+    )
 
 
 def lista_accountow() -> list[str]:

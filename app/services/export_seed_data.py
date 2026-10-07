@@ -89,10 +89,12 @@ def export_podmioty(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
 
 
 def export_klienci_agencyjni(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
-    """Mapowanie klient (marka) -> agencja per account manager, z tabeli
-    "Klienci pod agencjami" w Numery_zlecen_2026.xlsx. Klienci bez jeszcze
-    przypisanej agencji (kolumna "Agencja" pusta) są pomijani - mapowanie jest
-    budowane ręcznie i stopniowo, nie musi być kompletne od razu.
+    """Mapowanie klient (marka) -> LISTA agencji per account manager, z tabeli
+    "Klienci pod agencjami" w Numery_zlecen_2026.xlsx. Ten sam klient może mieć
+    w tabeli kilka wierszy z różnymi agencjami (raz zleca jedna, raz druga) -
+    wtedy trafia pod każdą z nich. Klienci bez jeszcze przypisanej agencji
+    (kolumna "Agencja" pusta) są pomijani - mapowanie jest budowane ręcznie i
+    stopniowo, nie musi być kompletne od razu.
 
     katalog_wyjsciowy: patrz export_podmioty - domyślnie DATA_OUT."""
     wb = openpyxl.load_workbook(numery_xlsx or NUMERY_XLSX, data_only=True)
@@ -108,7 +110,9 @@ def export_klienci_agencyjni(numery_xlsx=None, katalog_wyjsciowy: Path | None = 
                 break
             agencja = ws.cell(row=r, column=8).value
             if agencja and str(agencja).strip():
-                mapa[str(klient).strip()] = str(agencja).strip()
+                agencje = mapa.setdefault(str(klient).strip(), [])
+                if str(agencja).strip() not in agencje:
+                    agencje.append(str(agencja).strip())
             r += 1
         wynik[akant] = mapa
 

@@ -73,6 +73,15 @@ def test_klienci_dla_agencji_pusta_lista_dla_agencji_bez_klientow():
     assert lp.klienci_dla_agencji("Testowy Account", "Agencja Nieznana") == []
 
 
+def test_klient_przypisany_do_dwoch_agencji_jest_na_liscie_obu(tmp_path):
+    (tmp_path / "klienci_agencyjni.json").write_text(
+        json.dumps({"Testowy Account": {"Marka Jeden": ["Agencja Alfa", "Agencja Beta"], "Marka Dwa": "Agencja Alfa"}}),
+        encoding="utf-8",
+    )
+    assert lp.klienci_dla_agencji("Testowy Account", "Agencja Alfa") == ["Marka Dwa", "Marka Jeden"]
+    assert lp.klienci_dla_agencji("Testowy Account", "Agencja Beta") == ["Marka Jeden"]
+
+
 def test_formatuj_telefon_same_cyfry():
     assert lp.formatuj_telefon("500099699") == "+48 500 099 699"
 
