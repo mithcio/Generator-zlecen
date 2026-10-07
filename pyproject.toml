@@ -25,3 +25,10 @@ bundle_id = "com.mediafarm.generatorzlecen"
 [tool.flet.macos.entitlement]
 "com.apple.security.app-sandbox" = false
 "com.apple.security.files.user-selected.read-write" = true
+
+# jni_flutter 1.0.4+1 (opublikowane 2026-10-06) wymaga jni ^1.1.0, a szablon
+# flet build przypina jni 1.0.0 (dependency_overrides) - kompilacja macOS/Android
+# wywala sie na "generated bindings expect package:jni ^1.1.0, but 1.0.x was
+# imported". 1.0.3 to ostatnia wersja zgodna z jni 1.0.x.
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni_flutter = "1.0.3"
