@@ -1,0 +1,71 @@
+name: Publish release
+
+# Siatka bezpieczeństwa dla jobu `release` z build-and-release.yml. Zdarza się,
+# że GitHub Actions kończy run tagu jako "failure" mimo zbudowanych artefaktów
+# (job `release` w ogóle nie startuje - tak było przy v1.0.21), i wydanie nie
+# powstaje. Ten workflow:
+#  - odpala się sam po zakończeniu "Build and release" dla tagu v* i publikuje
+#    release z artefaktów tego runa, jeśli release'u jeszcze nie ma,
+#  - można go też odpalić ręcznie (Actions -> Publish release -> Run workflow)
+#    z numerem runa i tagiem, żeby odzyskać dowolne wydanie bez przestawiania
+#    tagów i bez przebudowy.
+# Jest idempotentny: gdy release już istnieje, nic nie robi.
+on:
+  workflow_run:
+    workflows: ["Build and release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "ID runa 'Build and release' z gotowymi artefaktami"
+        required: true
+      tag:
+        description: "Tag wydania, np. v1.0.21"
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    # Z workflow_run tylko dla pushy tagów v*, nie dla ręcznych/testowych buildów z main.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: ${{ github.event.inputs.run_id || github.event.workflow_run.id }}
+      TAG: ${{ github.event.inputs.tag || github.event.workflow_run.head_branch }}
+    steps:
+      - name: Sprawdź, czy release już istnieje
+        id: istnieje
+        run: |
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG już istnieje - nic do zrobienia."
+            echo "istnieje=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "istnieje=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pobierz artefakty runa
+        if: steps.istnieje.outputs.istnieje == 'false'
+        run: gh run download "$RUN_ID" --repo "${{ github.repository }}" --dir artefakty
+
+      - name: Opublikuj release
+        if: steps.istnieje.outputs.istnieje == 'false'
+        run: |
+          pliki=$(find artefakty -type f \( -name '*.zip' -o -name '*.apk' \))
+          echo "$pliki"
+          for wzorzec in windows macos '.apk'; do
+            echo "$pliki" | grep -qi "$wzorzec" || { echo "Brak artefaktu: $wzorzec"; exit 1; }
+          done
+          # shellcheck disable=SC2086
+          gh release create "$TAG" $pliki \
+            --repo "${{ github.repository }}" \
+            --verify-tag \
+            --title "$TAG" \
+            --notes "Automatyczny build (Windows + macOS + Android) przez GitHub Actions. Windows: rozpakuj .zip, uruchom GeneratorZlecen.exe. macOS: rozpakuj .zip, przenieś .app do Programów; pierwsze uruchomienie może wymagać kliknięcia prawym przyciskiem -> Otwórz (Gatekeeper, appka niepodpisana). Android: zainstaluj .apk (trzeba włączyć instalację z nieznanych źródeł - appka nie jest podpisana ani z Play Store)." \
+            || { gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1 && echo "Release $TAG powstał równolegle (job release z build-and-release) - OK."; }
