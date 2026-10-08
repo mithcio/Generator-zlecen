@@ -57,13 +57,13 @@ jobs:
       - name: Opublikuj release
         if: steps.istnieje.outputs.istnieje == 'false'
         run: |
-          pliki=$(find artefakty -type f \( -name '*.zip' -o -name '*.apk' \))
-          echo "$pliki"
+          # Tablica, nie zwykła zmienna: nazwa APK ma spację ("Generator Zlecen.apk").
+          mapfile -d '' pliki < <(find artefakty -type f \( -name '*.zip' -o -name '*.apk' \) -print0)
+          printf '%s\n' "${pliki[@]}"
           for wzorzec in windows macos '.apk'; do
-            echo "$pliki" | grep -qi "$wzorzec" || { echo "Brak artefaktu: $wzorzec"; exit 1; }
+            printf '%s\n' "${pliki[@]}" | grep -qi "$wzorzec" || { echo "Brak artefaktu: $wzorzec"; exit 1; }
           done
-          # shellcheck disable=SC2086
-          gh release create "$TAG" $pliki \
+          gh release create "$TAG" "${pliki[@]}" \
             --repo "${{ github.repository }}" \
             --verify-tag \
             --title "$TAG" \
