@@ -5,3 +5,6 @@
 # wywala: "Could not find a version that satisfies pyinstaller>=6.0.0").
 pytest>=8.0.0
 pyinstaller>=6.0.0
+# Serwer MCP (app/mcp_server.py, tylko Windows - patrz mcp_konfiguracja.py);
+# importowany leniwie, dopiero z flaga --mcp, więc build macOS/Androida go nie potrzebuje.
+mcp>=1.2,<2

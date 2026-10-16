@@ -7,7 +7,7 @@ import flet as ft
 from app.services import aktualizacje
 from app.services import eksport_nazwy
 from app.services import lookup_podmiotu as lp
-from app.services import numeracja
+from app.services import mcp_konfiguracja, numeracja
 from app.services import ustawienia
 from app.services.export_seed_data import (
     export_cennik_wydawcow,
@@ -273,6 +273,12 @@ class Kreator:
             expand=True,
         )
 
+        przelacznik_mcp = ft.Switch(
+            label="Uruchom MCP dla Claude (wystawianie zleceń z czatu w Claude Desktop)",
+            value=mcp_konfiguracja.czy_wlaczony() if mcp_konfiguracja.obslugiwane() else False,
+        )
+        mcp_na_starcie = przelacznik_mcp.value
+
         dd_jezyk_excel = ft.Dropdown(
             label="Język Excela na tym komputerze",
             value=biezace.get("jezyk_excel") or "EN",
@@ -416,6 +422,13 @@ class Kreator:
 
         def zapisz(e: ft.Event) -> None:
             akant = dd_akant.value
+            if mcp_konfiguracja.obslugiwane() and przelacznik_mcp.value != mcp_na_starcie:
+                try:
+                    mcp_konfiguracja.ustaw(przelacznik_mcp.value)
+                except mcp_konfiguracja.BladKonfiguracjiClaude as err:
+                    self.page.pop_dialog()
+                    self.pokaz_blad([str(err)])
+                    return
             ustawienia.zapisz(
                 sciezka_numery_zlecen=pole_numery.value or None,
                 domyslny_account_manager=None if akant in (None, "brak") else akant,
@@ -507,6 +520,22 @@ class Kreator:
                         ]
                     ),
                     blad_numery,
+                ]
+            )
+
+        if mcp_konfiguracja.obslugiwane():
+            sekcje.append(
+                [
+                    ft.Text("Claude (MCP)", weight=ft.FontWeight.BOLD, size=12),
+                    ft.Text(
+                        "Włączone: Claude Desktop sam uruchamia serwer przy każdym swoim "
+                        "starcie, więc w czacie można prosić o wystawienie zlecenia z "
+                        "maila/xlsx. Wyłączone: nic nie chodzi. Po zmianie zrestartuj "
+                        "Claude Desktop.",
+                        size=11,
+                        color=ft.Colors.GREY_700,
+                    ),
+                    przelacznik_mcp,
                 ]
             )
 

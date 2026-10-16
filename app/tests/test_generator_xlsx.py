@@ -220,3 +220,32 @@ def test_nadpisanie_pola_liczbowego_wylacza_automatyczna_formule(tmp_path):
     )
     komorki = _wczytaj_komorki_po_numerze(sciezka)
     assert komorki["7.1"].value == "Wg odrębnych ustaleń"
+
+
+def test_lego_kids_rewarded_ma_na_zleceniu_in_app_video_mobile(tmp_path):
+    zlecenie = _przykladowe_zlecenie()
+    zlecenie.pola.klient = "LEGO"
+    zlecenie.pola.target = "KIDS"
+    zlecenie.pola.format_reklamowy = "Rewarded KIDS"
+    podmiot = lp.znajdz_podmiot(zlecenie.pola.account_manager, zlecenie.pola.dom_mediowy)
+    spolka = lp.spolka_mediafarm(zlecenie.pola.podmiot_realizujacy)
+    kontakt = lp.kontakt_accounta(zlecenie.pola.account_manager)
+    sciezka = generuj_xlsx(zlecenie, podmiot, spolka, kontakt, tmp_path / "Zlecenie_test.xlsx")
+
+    assert _wczytaj_komorki_po_numerze(sciezka)["4.4"].value == "In-App Video Mobile"
+    ws = openpyxl.load_workbook(sciezka).active
+    assert "Rewarded" not in "\n".join(str(c.value) for row in ws.iter_rows() for c in row if c.value)
+
+
+def test_format_na_zleceniu_regula_tylko_dla_lego_kids():
+    from app.templates.zlecenie_layout import format_na_zleceniu
+
+    zlecenie = _przykladowe_zlecenie()
+    pola = zlecenie.pola
+    pola.format_reklamowy = "Rewarded KIDS"
+    pola.klient, pola.target = "Colian", "KIDS"
+    assert format_na_zleceniu(pola) == "Rewarded KIDS"
+    pola.klient, pola.target = "LEGO", "ADULTS"
+    assert format_na_zleceniu(pola) == "Rewarded KIDS"
+    pola.klient, pola.target, pola.format_reklamowy = "lego", "KIDS", "In-game audio KIDS"
+    assert format_na_zleceniu(pola) == "In-game audio KIDS"

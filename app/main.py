@@ -47,7 +47,17 @@ if czy_spakowana_appka():
 # wyjątki są nie do zdiagnozowania zdalnie, bez konsoli i bez debuggera
 # podpiętego do czyjegoś komputera. Ten sam folder co ustawienia.json/
 # mediafarm.json (patrz lokalizacje.py) - jedno miejsce do sprawdzenia.
-if sys.stdout is None or sys.stderr is None:
+if "--mcp" in sys.argv:
+    # Tryb serwera MCP (uruchamiany przez Claude Desktop): stdin/stdout to
+    # protokół, więc NIC poza nim nie może trafiać na stdout (dowolny print()
+    # zepsułby komunikację) - przekierowujemy go na stderr na czas importów.
+    _stdout_protokolu = sys.stdout
+    if sys.stderr is None:
+        _log_dir = katalog_danych_uzytkownika()
+        _log_dir.mkdir(parents=True, exist_ok=True)
+        sys.stderr = open(_log_dir / "mcp.log", "a", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stderr
+elif sys.stdout is None or sys.stderr is None:
     _log_dir = katalog_danych_uzytkownika()
     _log_dir.mkdir(parents=True, exist_ok=True)
     _log = open(_log_dir / "app.log", "a", encoding="utf-8", buffering=1)
@@ -115,8 +125,21 @@ def main(page: ft.Page) -> None:
     kreator.odswiez()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--mcp" in sys.argv:
+    from app import mcp_server
+
+    odswiez_baze_klientow()  # świeże dane klientów, jak przy starcie appki
+    sys.stdout = _stdout_protokolu
+    mcp_server.uruchom()
+elif __name__ == "__main__":
     odswiez_baze_klientow()
+    try:  # po przeniesieniu appki wpis MCP w Claude Desktop wskazywałby stary plik
+        from app.services import mcp_konfiguracja
+
+        if mcp_konfiguracja.obslugiwane():
+            mcp_konfiguracja.odswiez_sciezke()
+    except Exception as err:
+        print(f"MCP: nie udało się odświeżyć ścieżki w konfiguracji Claude: {err}")
     if "--web" in sys.argv:
         port = 8550
         if "--port" in sys.argv:

@@ -48,6 +48,26 @@ class LiniaPodpisu:
 Wiersz = Naglowek | NaglowekZIdentyfikatorem | Pozycja | Tekst | LiniaPodpisu
 
 
+# Podmiany nazwy formatu reklamowego wyłącznie NA ZLECENIU dla klienta (pole
+# 4.4; xlsx i PDF) - Dane Traffic i pliki wydawców dalej dostają prawdziwy
+# format. Klient dopasowywany po fragmencie nazwy (bez względu na wielkość
+# liter), format po początku nazwy.
+REGULY_FORMATU_NA_ZLECENIU = [
+    {"klient": "lego", "target": "KIDS", "format_prefiks": "Rewarded", "tekst": "In-App Video Mobile"},
+]
+
+
+def format_na_zleceniu(pola) -> str:
+    for regula in REGULY_FORMATU_NA_ZLECENIU:
+        if (
+            regula["klient"] in (pola.klient or "").casefold()
+            and (pola.target or "").upper() == regula["target"]
+            and (pola.format_reklamowy or "").startswith(regula["format_prefiks"])
+        ):
+            return regula["tekst"]
+    return pola.format_reklamowy
+
+
 def _fmt_data(d: date) -> str:
     return d.strftime("%d.%m.%Y")
 
@@ -90,7 +110,7 @@ def zbuduj_layout(
         Pozycja("4.1", "Nazwa kampanii", pola.nazwa_kampanii),
         Pozycja("4.2", "TG", pola.target),
         Pozycja("4.3", "Capping", "brak" if pola.capping is None else str(pola.capping)),
-        Pozycja("4.4", "Format reklamowy", pola.format_reklamowy),
+        Pozycja("4.4", "Format reklamowy", format_na_zleceniu(pola)),
         Pozycja(
             "4.5", etykieta_liczby(pola.model_sprzedazy),
             f"{round(zlecenie.liczba_total):,}".replace(",", " "),

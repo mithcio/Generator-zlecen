@@ -13,9 +13,30 @@ wiersz przez ROW()+INDIRECT — poprawnie liczy niezależnie od miejsca wklejeni
 (potwierdzone testem w Excelu: kopiowanie całego wiersza gdziekolwiek indziej
 dalej liczy z właściwych, lokalnych komórek).
 """
+import re
+from datetime import date
+
 from app.models.okres import Okres
 from app.models.zlecenie import Zlecenie
 from app.services import ustawienia
+
+# Accounty, u których nazwa kampanii w wierszu do pliku kampanii dostaje
+# przedrostek "rrrr.mm_" (miesiąc startu CAŁEJ kampanii, nie danego okresu -
+# wszystkie wiersze kampanii przejściowej mają ten sam przedrostek). Warunek
+# to ustawienie "domyślny account manager" - tak jak w prośbie użytkownika.
+ACCOUNTY_Z_PREFIKSEM_DATY = {"Igor Samul"}
+
+_STARY_PREFIKS = re.compile(r"^\d{2}\.\d{4}_")  # "08.2026_" - dawna konwencja
+_NOWY_PREFIKS = re.compile(r"^\d{4}\.\d{2}_")
+
+
+def _nazwa_z_prefiksem(nazwa: str, start: date) -> str:
+    """Dokłada "rrrr.mm_" przed nazwą kampanii. Nazwa, która już ma taki
+    przedrostek, zostaje bez zmian; dawny "mm.rrrr_" jest zastępowany nowym
+    (żeby nie wyszło "2026.11_11.2026_...")."""
+    if _NOWY_PREFIKS.match(nazwa):
+        return nazwa
+    return f"{start.year}.{start.month:02d}_{_STARY_PREFIKS.sub('', nazwa)}"
 
 
 def _fmt_liczba(x: float, jezyk_excel: str) -> str:
@@ -49,8 +70,12 @@ def _zbuduj_wiersz(
     jezyk_excel: str,
     uwagi_wspolne: bool,
     klient_bezposredni_pole: str,
+    prefiks_daty: bool,
 ) -> str:
     pola = zlecenie.pola
+    nazwa_kampanii = (
+        _nazwa_z_prefiksem(pola.nazwa_kampanii, zlecenie.data_startu) if prefiks_daty else pola.nazwa_kampanii
+    )
     przejsciowa = "TAK" if len(zlecenie.okresy) > 1 else "NIE"
     if pola.podmiot_realizujacy == "Sp. k.":
         dom_mediowy = pola.dom_mediowy
@@ -67,7 +92,7 @@ def _zbuduj_wiersz(
             dom_mediowy, klient = pola.dom_mediowy, ""
 
     kolumny = [
-        pola.nazwa_kampanii,
+        nazwa_kampanii,
         dom_mediowy,
         klient,
         pola.zlecajacy,
@@ -95,6 +120,7 @@ def zbuduj_wiersze_do_wklejenia_per_okres(
     jezyk_excel: str | None = None,
     uwagi_wspolne: bool | None = None,
     klient_bezposredni_pole: str | None = None,
+    prefiks_daty: bool | None = None,
 ) -> list[tuple[Okres, str]]:
     """Jak zbuduj_wiersze_do_wklejenia, ale zwraca listę (okres, wiersz) -
     do pokazania jako osobne pole tekstowe per miesiąc, każde podpisane
@@ -104,7 +130,10 @@ def zbuduj_wiersze_do_wklejenia_per_okres(
 
     jezyk_excel: "EN"/"PL" - domyślnie (None) brany z Ustawień, bo zależy od
     komputera, na którym wiersz zostanie wklejony, nie od danych zlecenia."""
-    if jezyk_excel is None or uwagi_wspolne is None or klient_bezposredni_pole is None:
+    if (
+        jezyk_excel is None or uwagi_wspolne is None
+        or klient_bezposredni_pole is None or prefiks_daty is None
+    ):
         biezace = ustawienia.wczytaj()
         jezyk_excel = jezyk_excel if jezyk_excel is not None else biezace["jezyk_excel"]
         uwagi_wspolne = uwagi_wspolne if uwagi_wspolne is not None else bool(biezace["uwagi_wspolne"])
@@ -113,9 +142,11 @@ def zbuduj_wiersze_do_wklejenia_per_okres(
             if klient_bezposredni_pole is not None
             else biezace["klient_bezposredni_pole"]
         )
+        if prefiks_daty is None:
+            prefiks_daty = biezace["domyslny_account_manager"] in ACCOUNTY_Z_PREFIKSEM_DATY
     posortowane = sorted(zlecenie.okresy, key=lambda o: o.data_startu)
     return [
-        (okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel, uwagi_wspolne, klient_bezposredni_pole))
+        (okres, _zbuduj_wiersz(zlecenie, okres, jezyk_excel, uwagi_wspolne, klient_bezposredni_pole, prefiks_daty))
         for okres in posortowane
     ]
 
@@ -125,12 +156,13 @@ def zbuduj_wiersze_do_wklejenia(
     jezyk_excel: str | None = None,
     uwagi_wspolne: bool | None = None,
     klient_bezposredni_pole: str | None = None,
+    prefiks_daty: bool | None = None,
 ) -> str:
     """Jeden wiersz tekstu per okres (miesiąc), rozdzielone nowymi liniami -
     gotowe do wklejenia bezpośrednio do zakładek miesięcznych pliku kampanii."""
     return "\n".join(
         wiersz
         for _, wiersz in zbuduj_wiersze_do_wklejenia_per_okres(
-            zlecenie, jezyk_excel, uwagi_wspolne, klient_bezposredni_pole
+            zlecenie, jezyk_excel, uwagi_wspolne, klient_bezposredni_pole, prefiks_daty
         )
     )
