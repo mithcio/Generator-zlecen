@@ -5,6 +5,7 @@ więc bez wpisu nic nie chodzi w tle - na komputerach, gdzie przełącznik jest
 wyłączony (domyślnie), nie dzieje się nic. Zmiana wymaga restartu Claude Desktop."""
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -23,7 +24,38 @@ def obslugiwane() -> bool:
 
 
 def sciezka_konfiguracji() -> Path:
+    r"""Claude Desktop z Microsoft Store (MSIX) trzyma konfigurację w
+    %LOCALAPPDATA%\Packages\Claude_<id>\LocalCache\Roaming\Claude - a
+    %APPDATA%\Claude w ogóle nie istnieje. Instalator z claude.ai używa
+    klasycznego %APPDATA%\Claude. Sprawdzamy najpierw wersję ze Store."""
+    lokalne = os.environ.get("LOCALAPPDATA")
+    if lokalne:
+        for folder in sorted(Path(lokalne, "Packages").glob("Claude_*/LocalCache/Roaming/Claude")):
+            return folder / "claude_desktop_config.json"
     return Path(os.environ["APPDATA"]) / "Claude" / "claude_desktop_config.json"
+
+
+def claude_desktop_dziala() -> bool:
+    """Claude Desktop trzyma konfigurację w pamięci i co jakiś czas przepisuje
+    cały plik - zmiana zrobiona przy uruchomionym Claude Desktop ginie (potwierdzone:
+    wpis zapisany o 22:39:18 został skasowany o 22:39:43). Zmieniać przełącznik
+    wolno więc tylko przy zamkniętym Claude Desktop. Łapiemy tylko aplikację
+    desktopową (nie `claude.exe` z Claude Code CLI) - po ścieżce pliku."""
+    if sys.platform != "win32":
+        return False
+    skrypt = (
+        "(Get-Process -Name Claude -ErrorAction SilentlyContinue | "
+        "Where-Object { $_.Path -match 'WindowsApps.Claude_|AnthropicClaude' }).Count"
+    )
+    try:
+        wynik = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", skrypt],
+            capture_output=True, text=True, timeout=20, stdin=subprocess.DEVNULL,
+            creationflags=0x08000000,  # bez migającego okna konsoli
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return wynik.stdout.strip() not in ("", "0")
 
 
 def _wpis() -> dict:

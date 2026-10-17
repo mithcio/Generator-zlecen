@@ -278,6 +278,7 @@ class Kreator:
             value=mcp_konfiguracja.czy_wlaczony() if mcp_konfiguracja.obslugiwane() else False,
         )
         mcp_na_starcie = przelacznik_mcp.value
+        status_mcp = ft.Text("", color=ft.Colors.RED_800, size=11)
 
         dd_jezyk_excel = ft.Dropdown(
             label="Język Excela na tym komputerze",
@@ -423,6 +424,15 @@ class Kreator:
         def zapisz(e: ft.Event) -> None:
             akant = dd_akant.value
             if mcp_konfiguracja.obslugiwane() and przelacznik_mcp.value != mcp_na_starcie:
+                if mcp_konfiguracja.claude_desktop_dziala():
+                    # Claude Desktop przepisałby plik konfiguracji z pamięci i
+                    # skasował wpis - patrz claude_desktop_dziala().
+                    status_mcp.value = (
+                        "Zamknij Claude Desktop całkowicie (także z zasobnika przy zegarze), "
+                        "potem kliknij Zapisz - przy uruchomionym Claude zmiana zniknie."
+                    )
+                    status_mcp.update()
+                    return
                 try:
                     mcp_konfiguracja.ustaw(przelacznik_mcp.value)
                 except mcp_konfiguracja.BladKonfiguracjiClaude as err:
@@ -536,6 +546,7 @@ class Kreator:
                         color=ft.Colors.GREY_700,
                     ),
                     przelacznik_mcp,
+                    status_mcp,
                 ]
             )
 

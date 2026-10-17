@@ -57,3 +57,38 @@ def test_odswiez_sciezke_poprawia_przestarzaly_wpis_tylko_gdy_wlaczony(tmp_path)
     plik.write_text(json.dumps({"mcpServers": {mk.NAZWA_WPISU: {"command": "C:/stary/GeneratorZlecen.exe"}}}), encoding="utf-8")
     mk.odswiez_sciezke(plik)
     assert json.loads(plik.read_text(encoding="utf-8"))["mcpServers"][mk.NAZWA_WPISU] == mk._wpis()
+
+
+def test_sciezka_preferuje_claude_desktop_ze_store(tmp_path, monkeypatch):
+    store = tmp_path / "Packages" / "Claude_abc123" / "LocalCache" / "Roaming" / "Claude"
+    store.mkdir(parents=True)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    assert mk.sciezka_konfiguracji() == store / "claude_desktop_config.json"
+
+
+def test_sciezka_bez_store_to_klasyczny_appdata(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    assert mk.sciezka_konfiguracji() == tmp_path / "Roaming" / "Claude" / "claude_desktop_config.json"
+
+
+def test_claude_desktop_dziala_false_gdy_powershell_nie_zwraca_procesow(monkeypatch):
+    import subprocess
+
+    def fake_run(*a, **k):
+        return subprocess.CompletedProcess(a, 0, stdout="0\n", stderr="")
+
+    monkeypatch.setattr(mk.subprocess, "run", fake_run)
+    monkeypatch.setattr(mk.sys, "platform", "win32")
+    assert mk.claude_desktop_dziala() is False
+
+
+def test_claude_desktop_dziala_true_gdy_jest_proces_desktopowy(monkeypatch):
+    import subprocess
+
+    monkeypatch.setattr(
+        mk.subprocess, "run", lambda *a, **k: subprocess.CompletedProcess(a, 0, stdout="3\n", stderr="")
+    )
+    monkeypatch.setattr(mk.sys, "platform", "win32")
+    assert mk.claude_desktop_dziala() is True
