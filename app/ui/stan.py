@@ -102,6 +102,11 @@ class StanKreatora:
     # trafia na wygenerowany brief (patrz generator_wydawcy.PLACEMENTY_POKI).
     poki_placement: str = ""
 
+    # Opcjonalny pakiet aplikacji (App Name, Bundle ID) wczytany z pliku w
+    # kroku 5 - trafia do osobnej zakładki w pliku Dane Traffic.
+    lista_aplikacji: list[tuple[str, str]] = field(default_factory=list)
+    plik_listy_aplikacji: str = ""
+
     # Ścieżka ostatnio wygenerowanego pliku Dane Traffic (krok 5) —
     # niezależne od zlecenie_wygenerowane (krok 4, Zlecenie xlsx+PDF).
     ostatnia_sciezka_dane_traffic: str | None = None

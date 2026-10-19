@@ -19,10 +19,13 @@ budżetami, które są kwotą w PLN z dwoma miejscami po przecinku. Daty liczą
 się jak liczby przy wyrównaniu (tak jak domyślnie w Excelu), ale zachowują
 własny format DD.MM.RRRR, nie "0 miejsc po przecinku".
 """
+import zipfile
 from datetime import date
 from pathlib import Path
 
+import openpyxl
 from openpyxl import Workbook
+from openpyxl.utils.exceptions import InvalidFileException
 from openpyxl.styles import Alignment, Font
 from openpyxl.worksheet.worksheet import Worksheet
 
@@ -107,7 +110,41 @@ def _dopasuj_szerokosc(ws: Worksheet, kolumna: str, teksty: list[str], margines:
     ws.column_dimensions[kolumna].width = max(len(t) for t in teksty) + margines
 
 
-def generuj_dane_traffic(zlecenie: Zlecenie, dane_traffic: DaneTraffic, sciezka: Path) -> Path:
+class BladListyAplikacji(Exception):
+    pass
+
+
+NAZWA_ZAKLADKI_APLIKACJE = "Lista aplikacji"
+
+
+def wczytaj_liste_aplikacji(sciezka: Path) -> list[tuple[str, str]]:
+    """Czyta pakiet aplikacji (App Name | Bundle ID) z pliku xlsx - zakładka
+    "Lista aplikacji" (jak w plikach DANE_*.xlsx) albo, gdy takiej nie ma,
+    pierwsza zakładka. Pierwszy wiersz to nagłówek, puste wiersze są pomijane."""
+    try:
+        wb = openpyxl.load_workbook(sciezka, read_only=True, data_only=True)
+    except (OSError, InvalidFileException, zipfile.BadZipFile) as err:
+        raise BladListyAplikacji(f"Nie udało się otworzyć pliku: {err}") from err
+    try:
+        ws = wb[NAZWA_ZAKLADKI_APLIKACJE] if NAZWA_ZAKLADKI_APLIKACJE in wb.sheetnames else wb.worksheets[0]
+        wiersze = [
+            (str(a).strip() if a is not None else "", str(b).strip() if b is not None else "")
+            for a, b, *_ in ws.iter_rows(min_row=2, max_col=2, values_only=True)
+        ]
+    finally:
+        wb.close()
+    wiersze = [w for w in wiersze if w[0] or w[1]]
+    if not wiersze:
+        raise BladListyAplikacji("Plik nie zawiera aplikacji (oczekiwane kolumny: App Name, Bundle ID).")
+    return wiersze
+
+
+def generuj_dane_traffic(
+    zlecenie: Zlecenie,
+    dane_traffic: DaneTraffic,
+    sciezka: Path,
+    aplikacje: list[tuple[str, str]] | None = None,
+) -> Path:
     pola = zlecenie.pola
     capping_wartosc = pola.capping if pola.capping is not None else "brak"
     wydawcy_tekst = ", ".join(pola.wydawcy_zewnetrzni) if pola.wydawcy_zewnetrzni else "brak"
@@ -162,6 +199,15 @@ def generuj_dane_traffic(zlecenie: Zlecenie, dane_traffic: DaneTraffic, sciezka:
     _wiersz_tabeli(ws, r, "Razem", budzet_total, round(zlecenie.liczba_total), pogrubione=True)
     teksty_kolumny_c.append(f"{budzet_total:,.2f} PLN")
     _dopasuj_szerokosc(ws, "C", teksty_kolumny_c)
+
+    if aplikacje:
+        ws_app = wb.create_sheet(NAZWA_ZAKLADKI_APLIKACJE)
+        _naglowek_tabeli(ws_app, 1, ["App Name", "Bundle ID"])
+        for i, (nazwa, bundle) in enumerate(aplikacje, start=2):
+            ws_app.cell(row=i, column=1, value=nazwa).alignment = ALIGN_ETYKIETA
+            ws_app.cell(row=i, column=2, value=bundle).alignment = ALIGN_ETYKIETA
+        _dopasuj_szerokosc(ws_app, "A", ["App Name"] + [a[0] for a in aplikacje])
+        _dopasuj_szerokosc(ws_app, "B", ["Bundle ID"] + [a[1] for a in aplikacje])
 
     sciezka.parent.mkdir(parents=True, exist_ok=True)
     wb.save(sciezka)

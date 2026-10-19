@@ -198,3 +198,18 @@ def test_generuj_dane_traffic_rozbicie_na_miesiace(tmp_path):
     assert "Lipiec 2026" in tekst_calego_arkusza
     assert "Sierpień 2026" in tekst_calego_arkusza
     assert "Razem" in tekst_calego_arkusza
+
+
+def test_zakladka_lista_aplikacji_roundtrip(tmp_path):
+    from app.services.generator_dane_traffic import wczytaj_liste_aplikacji
+
+    aplikacje = [("Talking Tom", "com.outfit7.talkingtom"), ("My Town", "mytown.home")]
+    sciezka = generuj_dane_traffic(_przykladowe_zlecenie(), DaneTraffic(), tmp_path / "d.xlsx", aplikacje)
+    wb = openpyxl.load_workbook(sciezka)
+    assert wb.sheetnames == ["Dane Traffic", "Lista aplikacji"]
+    assert wczytaj_liste_aplikacji(sciezka) == aplikacje
+
+
+def test_bez_aplikacji_brak_zakladki(tmp_path):
+    sciezka = generuj_dane_traffic(_przykladowe_zlecenie(), DaneTraffic(), tmp_path / "d.xlsx")
+    assert openpyxl.load_workbook(sciezka).sheetnames == ["Dane Traffic"]

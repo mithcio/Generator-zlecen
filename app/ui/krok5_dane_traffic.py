@@ -1,9 +1,11 @@
+from pathlib import Path
+
 import flet as ft
 
 from app.models.dane_traffic import DaneTraffic
 from app.services import cennik, generator_wydawcy
 from app.services.eksport_nazwy import folder_zlecenia, nazwa_pliku_dane_traffic
-from app.services.generator_dane_traffic import generuj_dane_traffic
+from app.services.generator_dane_traffic import BladListyAplikacji, generuj_dane_traffic, wczytaj_liste_aplikacji
 from app.services.kalkulacje import MIESIACE_PL, etykieta_liczby, liczba_dla_okresu
 from app.ui.krok4_podglad import dane_pomocnicze, zbuduj_zlecenie
 from app.ui.pola_pomocnicze import lista_bledow, naglowek_kroku, pole_dropdown_zamkniety, pole_tekstowe
@@ -51,7 +53,7 @@ def buduj(kreator) -> ft.Control:
         folder = folder_zlecenia(stan.nr_zlecenia)
         nazwa_pliku = nazwa_pliku_dane_traffic(stan.klient, stan.brand, stan.nr_zlecenia)
         try:
-            sciezka = generuj_dane_traffic(zlecenie, dane_traffic, folder / f"{nazwa_pliku}.xlsx")
+            sciezka = generuj_dane_traffic(zlecenie, dane_traffic, folder / f"{nazwa_pliku}.xlsx", stan.lista_aplikacji)
         except OSError as err:
             kreator.pokaz_blad([f"Nie udało się zapisać pliku: {err}"])
             return
@@ -90,6 +92,45 @@ def buduj(kreator) -> ft.Control:
             return
         _wykonaj_generowanie(e)
 
+    blad_aplikacji = ft.Text("", color=ft.Colors.RED_800, size=11)
+
+    async def wczytaj_aplikacje(e: ft.Event) -> None:
+        wynik = await kreator._file_picker.pick_files(
+            dialog_title="Wybierz plik z pakietem aplikacji (App Name, Bundle ID)",
+            file_type=ft.FilePickerFileType.CUSTOM,
+            allowed_extensions=["xlsx"],
+        )
+        if not wynik:
+            return
+        sciezka = wynik[0].path
+        if not sciezka or not Path(sciezka).is_absolute():
+            blad_aplikacji.value = "Przeglądarka nie udostępnia pełnej ścieżki pliku (ograniczenie trybu web)."
+            blad_aplikacji.update()
+            return
+        try:
+            stan.lista_aplikacji = wczytaj_liste_aplikacji(Path(sciezka))
+        except BladListyAplikacji as err:
+            blad_aplikacji.value = str(err)
+            blad_aplikacji.update()
+            return
+        stan.plik_listy_aplikacji = Path(sciezka).name
+        kreator.odswiez()
+
+    def usun_aplikacje(e: ft.Event) -> None:
+        stan.lista_aplikacji = []
+        stan.plik_listy_aplikacji = ""
+        kreator.odswiez()
+
+    wiersz_aplikacji: list[ft.Control] = [
+        ft.OutlinedButton("Wczytaj pakiet aplikacji (xlsx)", on_click=wczytaj_aplikacje),
+    ]
+    if stan.lista_aplikacji:
+        wiersz_aplikacji += [
+            ft.Text(f"{stan.plik_listy_aplikacji}: {len(stan.lista_aplikacji)} aplikacji (zakładka „Lista aplikacji”)"),
+            ft.TextButton("Usuń", on_click=usun_aplikacje),
+        ]
+    tresc.append(ft.Row(wiersz_aplikacji))
+    tresc.append(blad_aplikacji)
     tresc.append(
         ft.Row(
             [
