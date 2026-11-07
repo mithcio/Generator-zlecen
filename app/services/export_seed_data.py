@@ -46,7 +46,7 @@ NUMERY_XLSX = ZRODLA / "Numery_zlecen_2026.xlsx"
 # "Klienci pod agencjami" (G:H, + I - Klient/Agencja/Termin płatności klienta,
 # patrz export_terminy_platnosci_klientow). Wiersz 1 = baner instrukcji,
 # wiersz 2 = nagłówki, dane od wiersza 3.
-AKANCI_ARKUSZE = ["Agnieszka Kraińska", "Marta Urbańska", "Igor Samul"]
+AKANCI_ARKUSZE = ["Agnieszka Kraińska", "Marta Urbańska", "Igor Samul", "Natalia Matulaniec"]
 
 
 def export_podmioty(numery_xlsx=None, katalog_wyjsciowy: Path | None = None):
@@ -155,6 +155,11 @@ def export_terminy_platnosci_klientow(numery_xlsx=None, katalog_wyjsciowy: Path 
     )
 
 
+DODATKOWE_ACCOUNTY = {
+    "Natalia Matulaniec": {"email": "natalia.matulaniec@mediafarm.pl", "telefon": "667639049"},
+}
+
+
 def export_mediafarm():
     """Dane spółek Mediafarm (Sp. k. / Sp. z o.o.) + kontakty accountów."""
     wb = openpyxl.load_workbook(GENERATOR_XLSM, data_only=True)
@@ -208,6 +213,12 @@ def export_mediafarm():
             "telefon": POPRAWKI_TELEFONOW.get(nazwa, telefon_cyfry),
         }
         r += 1
+
+    # Accounty spoza arkusza "Akanci" w Generator_zleceń_i_danych (tam ich nie
+    # ma, bo plik jest zamrożony) - kontakt wpisany tu, żeby ponowne
+    # uruchomienie skryptu nie gubiło ich z mediafarm.json.
+    for nazwa, kontakt in DODATKOWE_ACCOUNTY.items():
+        accounts.setdefault(nazwa, kontakt)
 
     wynik = {"spolki": spolki, "accounts": accounts}
     with open(DATA_OUT / "mediafarm.json", "w", encoding="utf-8") as f:
