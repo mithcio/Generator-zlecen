@@ -121,9 +121,12 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Tablica, nie $(ls ...): APK ma spację w nazwie ("Generator Zlecen.apk")
+          # i rozbicie na słowa psuło to polecenie (release padał po 6 s).
+          mapfile -d '' dodatkowe < <(find macos-build android-build -type f \( -name '*.zip' -o -name '*.apk' \) -print0 2>/dev/null)
           gh release create "${{ github.ref_name }}" \
             windows-build/GeneratorZlecen-windows.zip \
-            $(ls macos-build/*.zip android-build/*.apk 2>/dev/null) \
+            "${dodatkowe[@]}" \
             --title "${{ github.ref_name }}" \
             --notes "Automatyczny build (Windows + macOS + Android) przez GitHub Actions. Windows: rozpakuj .zip, uruchom GeneratorZlecen.exe. macOS: rozpakuj .zip, przenieś .app do Programów; pierwsze uruchomienie może wymagać kliknięcia prawym przyciskiem -> Otwórz (Gatekeeper, appka niepodpisana). Android: zainstaluj .apk (trzeba włączyć instalację z nieznanych źródeł - appka nie jest podpisana ani z Play Store)." \
             --repo "${{ github.repository }}"
