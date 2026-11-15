@@ -95,11 +95,59 @@ def test_wystaw_zwalnia_numer_gdy_generowanie_sie_nie_uda(monkeypatch):
     assert numeracja.zarezerwuj_numer("Sp. k.") == "K/2026/001"
 
 
-def test_wystaw_z_podanym_numerem_nie_rezerwuje():
-    wynik = wystawianie.wystaw(_dane(nr_zlecenia="K/2026/077", dane_traffic=False))
+def test_wystaw_z_podanym_numerem_rezerwuje_go_w_rejestrze(_izolacja):
+    wynik = wystawianie.wystaw(_dane(nr_zlecenia="K/2026/003", dane_traffic=False))
     assert wynik["ok"] is True and wynik["numer_nadany_automatycznie"] is False
+    assert wynik["numer_w_rejestrze"] is True
+    assert wynik["rejestr_numerow"] == str(_izolacja)
     assert len(wynik["pliki"]) == 2
+    ws = openpyxl.load_workbook(_izolacja)["Numery zleceń"]
+    assert ws["B4"].value == "zajete" and ws["D4"].value == "Igor Samul"
+    # pierwszy wolny numer nadal 001 - podany ręcznie 003 jest już zajęty
     assert numeracja.zarezerwuj_numer("Sp. k.") == "K/2026/001"
+
+
+def test_wystaw_ponownie_wlasny_numer_przechodzi_i_nie_oddaje_go_przy_bledzie(monkeypatch):
+    assert wystawianie.wystaw(_dane(nr_zlecenia="K/2026/002", dane_traffic=False))["ok"] is True
+
+    def pada(*a, **k):
+        raise OSError("dysk pelny")
+
+    monkeypatch.setattr(wystawianie, "generuj_xlsx", pada)
+    wynik = wystawianie.wystaw(_dane(nr_zlecenia="K/2026/002", dane_traffic=False))
+    assert wynik["ok"] is False and wynik["numer_zwolniony"] is False
+    # numer wystawiony wcześniej zostaje zajęty: następny wolny to 001, potem 003
+    assert numeracja.zarezerwuj_numer("Sp. k.") == "K/2026/001"
+    assert numeracja.zarezerwuj_numer("Sp. k.") == "K/2026/003"
+
+
+def test_wystaw_numer_zajety_przez_kogos_innego_konczy_sie_bledem_bez_plikow(tmp_path, _izolacja):
+    wb = openpyxl.load_workbook(_izolacja)
+    ws = wb["Numery zleceń"]
+    ws["B3"], ws["C3"], ws["D3"] = "zajete", "20.10.2026", "Agnieszka Kraińska"
+    wb.save(_izolacja)
+
+    wynik = wystawianie.wystaw(_dane(nr_zlecenia="K/2026/002", dane_traffic=False))
+    assert wynik["ok"] is False
+    assert "Agnieszka Kraińska" in " ".join(wynik["bledy"])
+    assert not (tmp_path / "zlecenia").exists()
+
+
+def test_wystaw_numer_spoza_rejestru_konczy_sie_bledem():
+    wynik = wystawianie.wystaw(_dane(nr_zlecenia="K/2026/077", dane_traffic=False))
+    assert wynik["ok"] is False
+    assert "nie ma w pliku" in " ".join(wynik["bledy"])
+
+
+def test_slowniki_pokazuja_plik_rejestru_i_nastepny_wolny_numer(_izolacja):
+    info = wystawianie.slowniki_i_podmioty()["rejestr_numerow"]
+    assert info["plik"] == str(_izolacja)
+    assert info["K"]["nastepny_wolny"] == "K/2026/001" and info["S"]["zajetych"] == 0
+    assert info["plik_ustawien"].endswith("ustawienia.json")
+
+
+def test_podglad_pokazuje_rejestr_numerow(_izolacja):
+    assert wystawianie.podglad(_dane())["rejestr_numerow"]["plik"] == str(_izolacja)
 
 
 def test_slowniki_i_szukanie_podmiotu():

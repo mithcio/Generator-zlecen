@@ -54,6 +54,12 @@ DOMYSLNE = {
 }
 
 
+def plik_ustawien() -> str:
+    """Pełna ścieżka pliku ustawień, z którego korzysta TEN proces (appka, serwer
+    MCP i testy mogą czytać różne pliki - patrz _katalog_ustawien)."""
+    return str(DATA_PLIK)
+
+
 def wczytaj() -> dict:
     if not DATA_PLIK.exists():
         return dict(DOMYSLNE)

@@ -4,9 +4,11 @@ Claude mógł wystawić zlecenie z maila/xlsx; nie zależy od pakietu mcp, więc
 się to testować zwykłym pytestem.
 
 Dwie operacje: podglad() - walidacja i podsumowanie, nic nie zapisuje i nie
-pobiera numeru; wystaw() - rezerwuje numer w Numery_zlecen_2026.xlsx, generuje
-pliki (Zlecenie xlsx+PDF, opcjonalnie Dane Traffic i plik wydawcy) i zwraca
-wiersze do wklejenia do pliku kampanii.
+pobiera numeru; wystaw() - rezerwuje numer w Numery_zlecen_2026.xlsx (numer
+nadany automatycznie ALBO podany ręcznie - w obu przypadkach zapis jest
+potwierdzany odczytem pliku), generuje pliki (Zlecenie xlsx+PDF, opcjonalnie
+Dane Traffic i plik wydawcy) i zwraca wiersze do wklejenia do pliku kampanii.
+Każda odpowiedź podaje, którego pliku rejestru proces faktycznie używa.
 """
 from datetime import date, datetime
 
@@ -102,6 +104,18 @@ def _stan(dane: dict) -> tuple[StanKreatora, list[str]]:
     return st, bledy
 
 
+def rejestr_info() -> dict:
+    """Którego pliku ustawień i rejestru numerów używa TEN proces (serwer MCP
+    może czytać inne ustawienia niż okno aplikacji) oraz jak wygląda rejestr:
+    ostatni zajęty i następny wolny numer. Tylko odczyt."""
+    info = {"plik_ustawien": ustawienia.plik_ustawien()}
+    try:
+        info.update(numeracja.stan_rejestru())
+    except Exception as err:  # brak ścieżki, plik zajęty, zła zakładka...
+        info["blad"] = str(err)
+    return info
+
+
 def slowniki_i_podmioty(fraza: str = "", account_manager: str = "") -> dict:
     """Dozwolone wartości pól + (gdy podano frazę) pasujące domy mediowe /
     klienci z bazy podmiotów danego accounta - żeby wpisać nazwy dokładnie
@@ -118,6 +132,7 @@ def slowniki_i_podmioty(fraza: str = "", account_manager: str = "") -> dict:
         "modele_sprzedazy": slowniki.get("model_sprzedazy", []),
         "wydawcy_zewnetrzni": WYDAWCY,
         "placementy_poki": generator_wydawcy.PLACEMENTY_POKI,
+        "rejestr_numerow": rejestr_info(),
     }
     if fraza and account:
         f = fraza.casefold()
@@ -162,6 +177,7 @@ def podglad(dane: dict) -> dict:
         "ok": True,
         "nr_zlecenia": stan.nr_zlecenia if stan.nr_zlecenia != NR_TYMCZASOWY else NR_TYMCZASOWY,
         "ostrzezenia": _ostrzezenia(stan, ostrzezenie),
+        "rejestr_numerow": rejestr_info(),
         "podsumowanie": {
             "account_manager": stan.account_manager,
             "podmiot_realizujacy": stan.podmiot_realizujacy,
@@ -193,13 +209,24 @@ def wystaw(dane: dict) -> dict:
     if bledy or zlecenie is None:
         return {"ok": False, "bledy": bledy}
 
-    zarezerwowano = False
-    if stan.nr_zlecenia == NR_TYMCZASOWY:
-        try:
+    # Numer jest rezerwowany ZAWSZE, także podany ręcznie (np. przy ponownym
+    # wystawieniu) - wcześniej numer podany z zewnątrz nie trafiał do rejestru,
+    # więc ktoś inny mógł wziąć ten sam. Numer zajęty przez kogoś innego albo
+    # spoza rejestru kończy się błędem, zanim powstanie jakikolwiek plik.
+    automatyczny = stan.nr_zlecenia == NR_TYMCZASOWY
+    try:
+        if automatyczny:
             stan.nr_zlecenia = numeracja.zarezerwuj_numer(stan.podmiot_realizujacy, stan.account_manager)
-        except numeracja.BladNumeracji as err:
-            return {"ok": False, "bledy": [str(err)]}
-        zarezerwowano = True
+            zarezerwowano = True
+        else:
+            # True = zajęty dopiero teraz (wolno go oddać, gdy generowanie padnie);
+            # False = już był na tego account managera (nie ruszamy).
+            zarezerwowano = numeracja.zajmij_numer(
+                stan.nr_zlecenia, stan.podmiot_realizujacy, stan.account_manager
+            )
+    except numeracja.BladNumeracji as err:
+        return {"ok": False, "bledy": [str(err)]}
+    if automatyczny:
         zlecenie, _ = zbuduj_zlecenie(stan)
 
     try:
@@ -246,7 +273,9 @@ def wystaw(dane: dict) -> dict:
     return {
         "ok": True,
         "nr_zlecenia": stan.nr_zlecenia,
-        "numer_nadany_automatycznie": zarezerwowano,
+        "numer_nadany_automatycznie": automatyczny,
+        "numer_w_rejestrze": True,  # zapis potwierdzony odczytem pliku
+        "rejestr_numerow": numeracja.sciezka_rejestru(),
         "folder": str(folder),
         "pliki": [str(p) for p in pliki],
         "ostrzezenia": ostrzezenia,

@@ -15,7 +15,8 @@ kreatorze.
 Arkusz "Numery zleceń": kolumny A-D = SP. K. (numer/status/data/użytkownik),
 kolumny F-I = SP. Z O.O. (to samo przesunięte o kolumnę E jako separator).
 """
-from datetime import date
+import os
+from datetime import date, datetime
 from pathlib import Path
 
 import openpyxl
@@ -98,6 +99,125 @@ def _znajdz_wiersz_numeru(ws: Worksheet, kol_numeru: str, numer: str) -> int | N
     return None
 
 
+def sciezka_rejestru() -> str:
+    """Plik, w którym ten proces faktycznie rezerwuje numery (diagnostyka:
+    serwer MCP i okno aplikacji mogą mieć różne ustawienia)."""
+    return _sciezka_pliku()
+
+
+def _normalizuj_numer(numer: str) -> str:
+    """Rejestr trzyma numery jako K/2026/001, a w nazwach plików i folderów
+    ten sam numer występuje jako K-2026-001 - przy szukaniu w rejestrze oba
+    zapisy oznaczają to samo."""
+    return str(numer).strip().replace("-", "/")
+
+
+def _potwierdz_zapis(sciezka: str, podmiot_realizujacy: str, numer: str, account_manager: str | None) -> None:
+    """Otwiera plik z dysku od nowa (nie obiekt z pamięci) i sprawdza, że numer
+    ma status „zajete” i właściwego account managera. Bez tego zapis, który
+    nie dotarł na dysk, wyglądał jak udana rezerwacja."""
+    kol = KOLUMNY[podmiot_realizujacy]
+    wb = _otworz_workbook(sciezka)
+    try:
+        ws = _arkusz(wb, sciezka)
+        wiersz = _znajdz_wiersz_numeru(ws, kol["numer"], _normalizuj_numer(numer))
+        zapisano = (
+            wiersz is not None
+            and str(ws[f"{kol['status']}{wiersz}"].value or "").strip() == "zajete"
+            and str(ws[f"{kol['akant']}{wiersz}"].value or "").strip() == (account_manager or "").strip()
+        )
+    finally:
+        wb.close()
+    if not zapisano:
+        raise BladNumeracji(
+            f"Rezerwacja numeru {numer} nie została potwierdzona odczytem pliku {sciezka} "
+            "(zapis nie dotarł na dysk albo plik zmienił inny program). Numer NIE jest zarezerwowany."
+        )
+
+
+def stan_rejestru() -> dict:
+    """Odczyt (bez zapisu): który plik jest używany, kiedy był zmieniony oraz
+    ostatni zajęty i pierwszy wolny numer dla każdego podmiotu."""
+    sciezka = _sciezka_pliku()
+    wb = _otworz_workbook(sciezka)
+    try:
+        ws = _arkusz(wb, sciezka)
+        wynik = {
+            "plik": sciezka,
+            "plik_zmieniony": datetime.fromtimestamp(os.stat(sciezka).st_mtime).isoformat(timespec="seconds"),
+        }
+        for podmiot, kol in KOLUMNY.items():
+            zajete, wolny = 0, None
+            ostatni = None
+            for r in range(2, ws.max_row + 1):
+                if str(ws[f"{kol['status']}{r}"].value or "").strip():
+                    zajete += 1
+                    ostatni = {
+                        "numer": ws[f"{kol['numer']}{r}"].value,
+                        "data": str(ws[f"{kol['data']}{r}"].value or ""),
+                        "account": str(ws[f"{kol['akant']}{r}"].value or ""),
+                    }
+                elif wolny is None:
+                    wolny = ws[f"{kol['numer']}{r}"].value
+            wynik[PREFIKSY[podmiot]] = {"zajetych": zajete, "ostatni_zajety": ostatni, "nastepny_wolny": wolny}
+        return wynik
+    finally:
+        wb.close()
+
+
+def zajmij_numer(numer: str, podmiot_realizujacy: str, account_manager: str | None = None) -> bool:
+    """Rezerwuje KONKRETNY numer (podany ręcznie, np. przy ponownym wystawieniu
+    zlecenia) - ta sama rezerwacja co przy numerze nadawanym automatycznie.
+
+    Zwraca True, gdy numer był wolny i został teraz zarezerwowany, False, gdy
+    był już zajęty przez tego samego account managera (powtórne wystawienie
+    własnego numeru - nic nie zmieniamy). Numer zajęty przez kogo innego albo
+    nieistniejący w pliku to BladNumeracji: zlecenie z takim numerem nie może
+    powstać."""
+    _sprawdz_podmiot(podmiot_realizujacy)
+    kol = KOLUMNY[podmiot_realizujacy]
+    numer = _normalizuj_numer(numer)
+    prefiks = PREFIKSY[podmiot_realizujacy] + "/"
+    if not numer.startswith(prefiks):
+        raise BladNumeracji(
+            f"Numer {numer} nie pasuje do podmiotu „{podmiot_realizujacy}” (oczekiwano numeru zaczynającego się od {prefiks})."
+        )
+    sciezka = _sciezka_pliku()
+
+    wb = _otworz_workbook(sciezka)
+    try:
+        ws = _arkusz(wb, sciezka)
+        wiersz = _znajdz_wiersz_numeru(ws, kol["numer"], numer)
+        if wiersz is None:
+            raise BladNumeracji(f"Numeru {numer} nie ma w pliku {sciezka} - nie mogę go zarezerwować.")
+
+        if str(ws[f"{kol['status']}{wiersz}"].value or "").strip():
+            wlasciciel = str(ws[f"{kol['akant']}{wiersz}"].value or "").strip()
+            data = str(ws[f"{kol['data']}{wiersz}"].value or "").strip()
+            if account_manager and wlasciciel.casefold() == account_manager.casefold():
+                return False
+            raise BladNumeracji(
+                f"Numer {numer} jest już zajęty w pliku {sciezka} (account: {wlasciciel or 'brak'}, "
+                f"data: {data or 'brak'}). Wybierz inny numer."
+            )
+
+        for klucz, wartosc in (
+            ("status", "zajete"),
+            ("data", date.today().strftime("%d.%m.%Y")),
+            ("akant", account_manager or ""),
+        ):
+            komorka = ws[f"{kol[klucz]}{wiersz}"]
+            komorka.value = wartosc
+            komorka.alignment = WYROWNANIE_SRODEK
+
+        _zapisz_workbook(wb, sciezka)
+    finally:
+        wb.close()
+
+    _potwierdz_zapis(sciezka, podmiot_realizujacy, numer, account_manager)
+    return True
+
+
 def zarezerwuj_numer(podmiot_realizujacy: str, account_manager: str | None = None) -> str:
     """Znajduje pierwszy wolny numer dla danego podmiotu (skan kolumny
     status), zapisuje w tym samym wierszu status "zajete", dzisiejszą datę i
@@ -143,6 +263,7 @@ def zarezerwuj_numer(podmiot_realizujacy: str, account_manager: str | None = Non
     finally:
         wb.close()
 
+    _potwierdz_zapis(sciezka, podmiot_realizujacy, str(numer), account_manager)
     return str(numer)
 
 
@@ -160,7 +281,7 @@ def zwolnij_numer(numer: str, podmiot_realizujacy: str) -> None:
     try:
         ws = _arkusz(wb, sciezka)
 
-        wiersz = _znajdz_wiersz_numeru(ws, kol["numer"], numer)
+        wiersz = _znajdz_wiersz_numeru(ws, kol["numer"], _normalizuj_numer(numer))
         if wiersz is None:
             raise BladNumeracji(
                 f"Nie znaleziono numeru {numer} w pliku {sciezka} — rezerwacja nie została zwolniona."

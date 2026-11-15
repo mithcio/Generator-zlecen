@@ -158,3 +158,70 @@ def test_zwolnij_numer_nieznaleziony_podnosi_blad(tmp_path):
 def test_prefiksy_niezalezne():
     assert numeracja.PREFIKSY["Sp. k."] == "K"
     assert numeracja.PREFIKSY["Sp. z o.o."] == "S"
+
+
+def test_zajmij_numer_rezerwuje_konkretny_numer_a_nie_pierwszy_wolny(tmp_path):
+    plik = _zbuduj_plik_numery(tmp_path, ile=10)
+    _ustaw_sciezke(plik)
+    assert numeracja.zajmij_numer("S/2026/005", "Sp. z o.o.", "Igor Samul") is True
+
+    ws = openpyxl.load_workbook(plik)["Numery zleceń"]
+    assert ws["G6"].value == "zajete" and ws["I6"].value == "Igor Samul" and ws["H6"].value
+    assert numeracja.zarezerwuj_numer("Sp. z o.o.") == "S/2026/001"  # 005 omijany
+
+
+def test_zajmij_numer_przyjmuje_zapis_z_myslnikami(tmp_path):
+    plik = _zbuduj_plik_numery(tmp_path, ile=5)
+    _ustaw_sciezke(plik)
+    assert numeracja.zajmij_numer("S-2026-002", "Sp. z o.o.", "Igor Samul") is True
+    assert openpyxl.load_workbook(plik)["Numery zleceń"]["G3"].value == "zajete"
+
+
+def test_zajmij_numer_wlasny_zajety_numer_to_nie_blad_i_nic_nie_zmienia(tmp_path):
+    plik = _zbuduj_plik_numery(tmp_path, ile=5)
+    _ustaw_sciezke(plik)
+    assert numeracja.zajmij_numer("K/2026/002", "Sp. k.", "Igor Samul") is True
+    data = openpyxl.load_workbook(plik)["Numery zleceń"]["C3"].value
+    assert numeracja.zajmij_numer("K/2026/002", "Sp. k.", "igor samul") is False
+    assert openpyxl.load_workbook(plik)["Numery zleceń"]["C3"].value == data
+
+
+def test_zajmij_numer_zajety_przez_kogos_innego_podnosi_blad(tmp_path):
+    plik = _zbuduj_plik_numery(tmp_path, ile=5)
+    _ustaw_sciezke(plik)
+    numeracja.zajmij_numer("K/2026/002", "Sp. k.", "Marta Urbańska")
+    with pytest.raises(numeracja.BladNumeracji, match="Marta Urbańska"):
+        numeracja.zajmij_numer("K/2026/002", "Sp. k.", "Igor Samul")
+    with pytest.raises(numeracja.BladNumeracji):  # bez account managera też nie wolno
+        numeracja.zajmij_numer("K/2026/002", "Sp. k.", None)
+
+
+def test_zajmij_numer_spoza_rejestru_i_zly_prefiks_podnosza_blad(tmp_path):
+    plik = _zbuduj_plik_numery(tmp_path, ile=5)
+    _ustaw_sciezke(plik)
+    with pytest.raises(numeracja.BladNumeracji, match="nie ma w pliku"):
+        numeracja.zajmij_numer("K/2026/099", "Sp. k.", "Igor Samul")
+    with pytest.raises(numeracja.BladNumeracji, match="nie pasuje"):
+        numeracja.zajmij_numer("S/2026/001", "Sp. k.", "Igor Samul")
+
+
+def test_zapis_ktory_nie_dotarl_na_dysk_nie_jest_udana_rezerwacja(tmp_path, monkeypatch):
+    plik = _zbuduj_plik_numery(tmp_path, ile=5)
+    _ustaw_sciezke(plik)
+    monkeypatch.setattr(numeracja, "_zapisz_workbook", lambda wb, sciezka: None)  # zapis "przechodzi", ale nic nie zapisuje
+    with pytest.raises(numeracja.BladNumeracji, match="nie została potwierdzona"):
+        numeracja.zarezerwuj_numer("Sp. k.", "Igor Samul")
+    with pytest.raises(numeracja.BladNumeracji, match="nie została potwierdzona"):
+        numeracja.zajmij_numer("K/2026/002", "Sp. k.", "Igor Samul")
+
+
+def test_stan_rejestru_pokazuje_plik_ostatni_zajety_i_nastepny_wolny(tmp_path):
+    plik = _zbuduj_plik_numery(tmp_path, ile=6, zajete_k=2)
+    _ustaw_sciezke(plik)
+    numeracja.zajmij_numer("S/2026/004", "Sp. z o.o.", "Igor Samul")
+    stan = numeracja.stan_rejestru()
+    assert stan["plik"] == str(plik)
+    assert stan["K"]["zajetych"] == 2 and stan["K"]["nastepny_wolny"] == "K/2026/003"
+    assert stan["S"]["ostatni_zajety"]["numer"] == "S/2026/004"
+    assert stan["S"]["ostatni_zajety"]["account"] == "Igor Samul"
+    assert stan["S"]["nastepny_wolny"] == "S/2026/001"
