@@ -12,6 +12,8 @@ import json
 from pathlib import Path
 from typing import NamedTuple
 
+from app.services.lokalizacje import czy_spakowana_appka, katalog_danych_uzytkownika
+
 DATA_PLIK = Path(__file__).resolve().parent.parent / "data" / "cennik_wydawcow.json"
 
 SYMBOLE_WALUT = {"EUR": "€", "USD": "$", "PLN": "zł"}
@@ -33,10 +35,19 @@ class BladCennika(Exception):
 
 
 def _wczytaj() -> dict:
-    if not DATA_PLIK.exists():
-        return {}
-    with open(DATA_PLIK, encoding="utf-8") as f:
-        return json.load(f)
+    # W spakowanej appce odswiez_baze_klientow (main.py) zapisuje cennik do
+    # folderu danych uzytkownika, a app/data/ w instalce go nie zawiera
+    # (plik jest w .gitignore) - czytanie tylko stamtad dawalo pusty cennik i
+    # "Brak aktywnej stawki" dla kazdego wydawcy. Tak samo szuka
+    # lookup_podmiotu._wczytaj: najpierw folder uzytkownika, potem app/data.
+    kandydaci = [DATA_PLIK]
+    if czy_spakowana_appka():
+        kandydaci.insert(0, katalog_danych_uzytkownika() / DATA_PLIK.name)
+    for plik in kandydaci:
+        if plik.exists():
+            with open(plik, encoding="utf-8") as f:
+                return json.load(f)
+    return {}
 
 
 def stawka(wydawca: str, format_reklamowy: str) -> Stawka:
